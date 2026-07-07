@@ -88,6 +88,7 @@
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;
     transition:transform .12s ease, box-shadow .12s ease;
+    color:inherit;text-decoration:none;cursor:pointer;
   }
   .card:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(30,25,20,.06),0 18px 34px -20px rgba(30,25,20,.4)}
   .thumb{position:relative;aspect-ratio:4/3;background:#EFEBE3;overflow:hidden}
@@ -107,8 +108,8 @@
     text-shadow:0 0 8px rgba(255,92,77,.55);
   }
   .body{padding:12px 13px 14px;display:flex;flex-direction:column;gap:9px;flex:1}
-  .name{font-size:15px;font-weight:500;line-height:1.42;text-decoration:none}
-  .name:hover{color:var(--red);text-decoration:underline;text-underline-offset:2px}
+  .name{font-size:15px;font-weight:500;line-height:1.42;text-decoration:none;color:var(--ink)}
+  .card:hover .name{color:var(--red)}
   .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;align-items:center}
   .pill{font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--chip);color:#5f5b54;font-weight:500}
   .pill.time{font-family:"Roboto Mono",monospace}
@@ -960,8 +961,12 @@ const countEl = document.getElementById('count');
 function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 function card(x){
-  const el = document.createElement('div');
+  // 公式Rコードがあればカード全体をレシピへのリンクにする（名前だけでなくどこをタップしても開く）。
+  // 無ければ（将来のノラ等）x.url、どちらも無ければ非リンクの div。
+  const href = x.r ? LINK(x.r) : (x.url || "");
+  const el = document.createElement(href ? 'a' : 'div');
   el.className = 'card';
+  if(href){ el.href = href; el.target = '_blank'; el.rel = 'noopener'; }
   const pills = [];
   if(x.cat) pills.push(`<span class="pill cat">${esc(x.cat)}</span>`);
   if(x.min!=null) pills.push(`<span class="pill time">⏱ ${x.min}分</span>`);
@@ -970,24 +975,18 @@ function card(x){
   if(x.lim) pills.push(`<span class="pill lim">${esc(x.lim)}限定</span>`);
   if(x.yoyaku) pills.push(`<span class="pill yoyaku">予約OK</span>`);
   if(x.cloud) pills.push(`<span class="pill cloud">クラウド</span>`);
-  // 公式Rコードがあれば写真/レシピURLを導出。無ければ（将来のノラ等）x.url があればそれ、
-  // どちらも無ければ番号タイルにフォールバックし、名前はリンクにしない。
-  const href = x.r ? LINK(x.r) : (x.url || "");
   const thumb = x.r
     ? `<img loading="lazy" referrerpolicy="no-referrer" src="${PHOTO(x.r)}" alt="${esc(x.name)}"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
        <div class="fallback"><strong>No.${esc(x.no)}</strong><span>${esc(x.name)}</span></div>`
     : `<div class="fallback" style="display:flex"><strong>No.${esc(x.no)}</strong><span>${esc(x.name)}</span></div>`;
-  const nameEl = href
-    ? `<a class="name" href="${href}" target="_blank" rel="noopener">${esc(x.name)}</a>`
-    : `<span class="name">${esc(x.name)}</span>`;
   el.innerHTML = `
     <div class="thumb">
       <div class="num">${esc(x.no)}</div>
       ${thumb}
     </div>
     <div class="body">
-      ${nameEl}
+      <span class="name">${esc(x.name)}</span>
       <div class="meta">${pills.join('')}</div>
     </div>`;
   return el;
