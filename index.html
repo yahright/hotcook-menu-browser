@@ -46,6 +46,18 @@
   h1 .k{color:var(--red)}
   .count{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted)}
   .controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .searchrow{display:flex;gap:8px;margin-top:12px;align-items:center}
+  .fbtn{
+    display:none; flex:none; align-items:center; gap:6px; white-space:nowrap;
+    font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:9px 13px;border-radius:10px;
+  }
+  .fbtn .fbadge{
+    display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+    padding:0 5px;border-radius:999px;background:var(--red);color:#fff;font-size:11px;font-weight:700;
+  }
+  .fbtn .fbadge[hidden]{display:none}
   .search{
     flex:1 1 260px; min-width:0; display:flex;align-items:center;gap:8px;
     background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
@@ -119,9 +131,17 @@
   footer{max-width:1180px;margin:0 auto;padding:0 20px 50px;color:var(--muted);font-size:12px;line-height:1.7}
   footer code{font-family:"Roboto Mono",monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
 
+  /* モバイル: 検索だけ常時表示。プルダウン/チップは「絞り込み」で開閉して画面を圧迫しない */
+  @media (max-width:640px){
+    .bar{padding:11px 14px}
+    h1{font-size:16px}
+    .fbtn{display:inline-flex}
+    .filters{display:none}
+    .filters.open{display:block}
+    .filters .controls{margin-top:10px}
+  }
   @media (max-width:520px){
     .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-    h1{font-size:17px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -133,32 +153,39 @@
       <h1>ホット<span class="k">クック</span> メニューブラウザ</h1>
       <span class="count" id="count"></span>
     </div>
-    <div class="controls">
+    <div class="searchrow">
       <label class="search">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input id="q" type="search" placeholder="料理名・番号で検索（例: カレー / 790）" autocomplete="off">
       </label>
-      <select id="sort">
-        <option value="no">番号順</option>
-        <option value="timeAsc">調理時間 短い順</option>
-        <option value="timeDesc">調理時間 長い順</option>
-        <option value="nameJa">名前順</option>
-      </select>
-      <select id="size">
-        <option value="">全サイズ</option>
-        <option value="1.0">1.0L</option>
-        <option value="1.6">1.6L</option>
-        <option value="2.4">2.4L</option>
-      </select>
-      <select id="cat"><option value="">全系統</option></select>
-      <select id="main"><option value="">全材料</option></select>
+      <button class="fbtn" id="f-toggle" type="button" aria-expanded="false" aria-controls="filters">
+        絞り込み<span class="fbadge" id="fbadge" hidden></span>
+      </button>
     </div>
-    <div class="controls">
-      <div class="chips">
-        <button class="chip" id="f-yoyaku" aria-pressed="false">予約できる</button>
-        <button class="chip red" id="f-cloud" aria-pressed="false">クラウド限定</button>
-        <button class="chip red" id="f-notcloud" aria-pressed="false">本体だけで作れる</button>
-        <button class="chip" id="f-group" aria-pressed="false">系統ごとに見出し</button>
+    <div class="filters" id="filters">
+      <div class="controls">
+        <select id="sort">
+          <option value="no">番号順</option>
+          <option value="timeAsc">調理時間 短い順</option>
+          <option value="timeDesc">調理時間 長い順</option>
+          <option value="nameJa">名前順</option>
+        </select>
+        <select id="size">
+          <option value="">全サイズ</option>
+          <option value="1.0">1.0L</option>
+          <option value="1.6">1.6L</option>
+          <option value="2.4">2.4L</option>
+        </select>
+        <select id="cat"><option value="">全系統</option></select>
+        <select id="main"><option value="">全材料</option></select>
+      </div>
+      <div class="controls">
+        <div class="chips">
+          <button class="chip" id="f-yoyaku" aria-pressed="false">予約できる</button>
+          <button class="chip red" id="f-cloud" aria-pressed="false">クラウド限定</button>
+          <button class="chip red" id="f-notcloud" aria-pressed="false">本体だけで作れる</button>
+          <button class="chip" id="f-group" aria-pressed="false">系統ごとに見出し</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1018,6 +1045,11 @@ function render(){
   grid.appendChild(frag);
   empty.hidden = list.length>0;
   countEl.textContent = `${list.length} / ${RECIPES.length} 件`;
+  // 「絞り込み」ボタンに、有効なフィルタ数バッジを出す（折りたたみ中でも効き具合が分かる）
+  const active = [state.size,state.cat,state.main].filter(Boolean).length
+    + [state.yoyaku,state.cloud,state.notcloud].filter(Boolean).length;
+  const badge = document.getElementById('fbadge');
+  if(active){ badge.textContent = active; badge.hidden = false; } else { badge.hidden = true; }
 }
 
 // 系統・主材料のプルダウンを実データ（件数付き）で埋める
@@ -1061,6 +1093,12 @@ toggle('f-yoyaku','yoyaku');
 toggle('f-cloud','cloud','notcloud');
 toggle('f-notcloud','notcloud','cloud');
 toggle('f-group','group');
+
+// モバイル: 「絞り込み」で プルダウン/チップ を開閉
+document.getElementById('f-toggle').addEventListener('click',function(){
+  const open = document.getElementById('filters').classList.toggle('open');
+  this.setAttribute('aria-expanded', String(open));
+});
 
 render();
 </script>
