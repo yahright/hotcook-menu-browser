@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ホットクック メニューブラウザ</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E23B2E">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ホットクック">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFAF7; --ink:#20201E; --muted:#7A7670;
+    --line:#E8E3DA; --card:#FFFFFF;
+    --red:#E23B2E; --red-soft:#FCEBE9;
+    --display:#17181A; --display-lit:#FF5C4D;
+    --chip:#F2EFE9;
+    --shadow:0 1px 2px rgba(30,25,20,.05),0 8px 24px -18px rgba(30,25,20,.25);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Zen Kaku Gothic New",system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+
+  /* ---- header ---- */
+  header{
+    position:sticky; top:0; z-index:20;
+    background:rgba(251,250,247,.85); backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar{max-width:1180px;margin:0 auto;padding:14px 20px}
+  .titlerow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  h1{font-size:19px;font-weight:700;margin:0;letter-spacing:.01em}
+  h1 .k{color:var(--red)}
+  .count{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted)}
+  .controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  .search{
+    flex:1 1 260px; min-width:0; display:flex;align-items:center;gap:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;
+  }
+  .search svg{flex:none;opacity:.5}
+  .search input{border:0;outline:0;background:none;font:inherit;font-size:15px;width:100%;color:var(--ink)}
+  select{
+    font:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer;
+  }
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{
+    font:inherit;font-size:13px;font-weight:500;cursor:pointer;
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:8px 13px;border-radius:999px;transition:.12s;
+  }
+  .chip:hover{border-color:#d8d2c8}
+  .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .chip.red[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
+
+  /* ---- grid ---- */
+  main{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+  .grid{
+    display:grid;gap:16px;
+    grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+  }
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(30,25,20,.06),0 18px 34px -20px rgba(30,25,20,.4)}
+  .thumb{position:relative;aspect-ratio:4/3;background:#EFEBE3;overflow:hidden}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .fallback{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    flex-direction:column;gap:6px;text-align:center;padding:14px;
+    background:repeating-linear-gradient(135deg,#F0ECE4,#F0ECE4 10px,#ECE7DE 10px,#ECE7DE 20px);
+    color:var(--muted);font-size:13px;line-height:1.4;
+  }
+  .num{
+    position:absolute;top:9px;left:9px;
+    font-family:"Roboto Mono",monospace;font-weight:700;font-size:14px;letter-spacing:.06em;
+    background:var(--display);color:var(--display-lit);
+    padding:4px 9px;border-radius:7px;
+    box-shadow:0 1px 6px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.06);
+    text-shadow:0 0 8px rgba(255,92,77,.55);
+  }
+  .body{padding:12px 13px 14px;display:flex;flex-direction:column;gap:9px;flex:1}
+  .name{font-size:15px;font-weight:500;line-height:1.42;text-decoration:none}
+  .name:hover{color:var(--red);text-decoration:underline;text-underline-offset:2px}
+  .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto;align-items:center}
+  .pill{font-size:11.5px;padding:3px 8px;border-radius:6px;background:var(--chip);color:#5f5b54;font-weight:500}
+  .pill.time{font-family:"Roboto Mono",monospace}
+  .pill.yoyaku{background:#EAF2EC;color:#2f6b40}
+  .pill.cloud{background:var(--red-soft);color:var(--red)}
+  .pill.lim{background:#EDEAF6;color:#5a4b8a}
+  .pill.cat{background:#EEF1F4;color:#42576b}
+  .pill.main{background:#FBF0E4;color:#8a5a2a}
+
+  /* 系統ごとの見出し（グループ表示時） */
+  .group{
+    grid-column:1/-1;display:flex;align-items:baseline;gap:10px;
+    margin:10px 2px 0;padding-bottom:7px;border-bottom:1px solid var(--line);
+  }
+  .group:first-child{margin-top:0}
+  .group h2{font-size:15px;font-weight:700;margin:0}
+  .group .gc{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted)}
+
+  .empty{text-align:center;color:var(--muted);padding:80px 20px;font-size:15px}
+  footer{max-width:1180px;margin:0 auto;padding:0 20px 50px;color:var(--muted);font-size:12px;line-height:1.7}
+  footer code{font-family:"Roboto Mono",monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+
+  @media (max-width:520px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+    h1{font-size:17px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="titlerow">
+      <h1>ホット<span class="k">クック</span> メニューブラウザ</h1>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="controls">
+      <label class="search">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" type="search" placeholder="料理名・番号で検索（例: カレー / 790）" autocomplete="off">
+      </label>
+      <select id="sort">
+        <option value="no">番号順</option>
+        <option value="timeAsc">調理時間 短い順</option>
+        <option value="timeDesc">調理時間 長い順</option>
+        <option value="nameJa">名前順</option>
+      </select>
+      <select id="size">
+        <option value="">全サイズ</option>
+        <option value="1.0">1.0L</option>
+        <option value="1.6">1.6L</option>
+        <option value="2.4">2.4L</option>
+      </select>
+      <select id="cat"><option value="">全系統</option></select>
+      <select id="main"><option value="">全材料</option></select>
+    </div>
+    <div class="controls">
+      <div class="chips">
+        <button class="chip" id="f-yoyaku" aria-pressed="false">予約できる</button>
+        <button class="chip red" id="f-cloud" aria-pressed="false">クラウド限定</button>
+        <button class="chip red" id="f-notcloud" aria-pressed="false">本体だけで作れる</button>
+        <button class="chip" id="f-group" aria-pressed="false">系統ごとに見出し</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>条件に合うメニューがありません。</div>
+</main>
+
+<footer>
+  写真は <code>cocoroplus.jp.sharp/.../photo_large/{Rコード}.jpg</code> を直接参照しています（読み込めない場合は番号タイルを表示）。
+  この版はサンプル約40件。全メニューに差し替えるには同梱の <code>build_hotcook.py</code> を実行してください。
+</footer>
+
+<!-- build_hotcook.py はこの script の中身を全メニューJSONに書き換えます -->
+<script id="recipe-data" type="application/json">
+[
+{"source":"sharp","sourceId":"R4001","no":"1","r":"R4001","name":"肉じゃが","min":35,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4002","no":"2","r":"R4002","name":"筑前煮","min":35,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4003","no":"3","r":"R4003","name":"かぼちゃの煮物","min":20,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4004","no":"4","r":"R4004","name":"里いもの煮ころがし","min":35,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4005","no":"5","r":"R4005","name":"豚バラ大根","min":20,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4006","no":"6","r":"R4006","name":"八宝菜","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4007","no":"7","r":"R4007","name":"チキンと野菜のカレー(無水カレー)","min":65,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4008","no":"8","r":"R4008","name":"キーマカレー","min":20,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4009","no":"9","r":"R4009","name":"クリームシチュー","min":45,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4010","no":"10","r":"R4010","name":"ビーフシチュー","min":85,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4011","no":"11","r":"R4011","name":"じゃがいものポタージュ","min":40,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4012","no":"12","r":"R4012","name":"おでん","min":65,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4013","no":"13","r":"R4013","name":"ポトフ","min":60,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4014","no":"14","r":"R4014","name":"ひじきの煮物","min":35,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4015","no":"15","r":"R4015","name":"きんぴら","min":35,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4016","no":"16","r":"R4016","name":"さんまの骨までやわらか煮","min":150,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4017","no":"17","r":"R4017","name":"肉みそ","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4018","no":"18","r":"R4018","name":"黒豆","min":180,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4019","no":"19","r":"R4019","name":"アクアパッツァ","min":25,"size":"2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4020","no":"20","r":"R4020","name":"いかめし","min":55,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4021","no":"21","r":"R4021","name":"一尾魚の煮つけ","min":25,"size":"2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4022","no":"22","r":"R4022","name":"いわしの梅煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4023","no":"23","r":"R4023","name":"いわしの骨までやわらか煮","min":150,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4024","no":"24","r":"R4024","name":"おかゆ","min":80,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4025","no":"25","r":"R4025","name":"かぼちゃのポタージュ","min":40,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4026","no":"26","r":"R4026","name":"かれいの煮つけ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4027","no":"27","r":"R4027","name":"きのこの佃煮","min":30,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4028","no":"28","r":"R4028","name":"キャベツの丸ごとスープ煮","min":60,"size":"2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4029","no":"29","r":"R4029","name":"牛すじの煮こみ","min":90,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4030","no":"30","r":"R4030","name":"牛肉のしぐれ煮","min":30,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4031","no":"31","r":"R4031","name":"切り干し大根の煮物","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4032","no":"32","r":"R4032","name":"具だくさんみそ汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4033","no":"33","r":"R4033","name":"クラムチャウダー","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4034","no":"34","r":"R4034","name":"グリーンカレー","min":20,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4035","no":"35","r":"R4035","name":"けんちん汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4036","no":"36","r":"R4036","name":"コーンスープ","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4037","no":"37","r":"R4037","name":"小松菜とツナの煮物","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4038","no":"38","r":"R4038","name":"五目豆","min":180,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4039","no":"39","r":"R4039","name":"こんにゃくの甘辛煮","min":35,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4040","no":"40","r":"R4040","name":"昆布豆","min":180,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4041","no":"41","r":"R4041","name":"さつまいものポタージュ","min":40,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4042","no":"42","r":"R4042","name":"さばのみそ煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4043","no":"43","r":"R4043","name":"参鶏湯(サムゲタン)","min":110,"size":"2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4044","no":"44","r":"R4044","name":"さんまの骨までやわらか煮(トマト風味)","min":150,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4045","no":"45","r":"R4045","name":"しょうがのサッと煮","min":20,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4046","no":"46","r":"R4046","name":"スペアリブの煮こみ","min":90,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4047","no":"47","r":"R4047","name":"たいのあら炊き","min":40,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4048","no":"48","r":"R4048","name":"たこと里いもの煮物","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4049","no":"49","r":"R4049","name":"玉ねぎの丸ごとスープ煮","min":60,"size":"2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4050","no":"50","r":"R4050","name":"チリコンカン","min":30,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4051","no":"51","r":"R4051","name":"デミグラス風ソース","min":30,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4052","no":"52","r":"R4052","name":"トマトリゾット","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4053","no":"53","r":"R4053","name":"トムヤムクン","min":30,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4054","no":"54","r":"R4054","name":"ドライカレー","min":20,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4055","no":"55","r":"R4055","name":"鶏とカシューナッツの炒め煮","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4056","no":"56","r":"R4056","name":"鶏と大根の煮物","min":35,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4057","no":"57","r":"R4057","name":"鶏とブロッコリーのオイスター炒め","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4058","no":"58","r":"R4058","name":"酸辣湯(サンラータン)","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4059","no":"59","r":"R4059","name":"バーニャカウダソース","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4060","no":"60","r":"R4060","name":"白菜と豚バラの重ね煮","min":30,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4061","no":"61","r":"R4061","name":"白菜のクリーム煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4062","no":"62","r":"R4062","name":"パプリカとズッキーニのあえ物","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4063","no":"63","r":"R4063","name":"ビーフカレー","min":45,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4064","no":"64","r":"R4064","name":"ビーフストロガノフ","min":45,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4065","no":"65","r":"R4065","name":"ピーマンのじゃこあえ","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4066","no":"66","r":"R4066","name":"ブイヤベース","min":60,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4067","no":"67","r":"R4067","name":"豚肉のトマト煮こみ","min":65,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4068","no":"68","r":"R4068","name":"豚の角煮","min":90,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4069","no":"69","r":"R4069","name":"プチトマトのさっぱり煮","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4070","no":"70","r":"R4070","name":"ぶり大根","min":40,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4071","no":"71","r":"R4071","name":"ぶりの酢煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4072","no":"72","r":"R4072","name":"ふろふき大根","min":65,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4073","no":"73","r":"R4073","name":"回鍋肉(ホイコーロー)","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4074","no":"74","r":"R4074","name":"ポークビーンズ","min":30,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4075","no":"75","r":"R4075","name":"骨付き鶏もも肉のタンドリー煮","min":70,"size":"2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4076","no":"76","r":"R4076","name":"ボルシチ","min":85,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4077","no":"77","r":"R4077","name":"ホワイトソース","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4078","no":"78","r":"R4078","name":"麻婆なす","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4079","no":"79","r":"R4079","name":"ミートソース","min":30,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4080","no":"80","r":"R4080","name":"野菜スープ","min":25,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4081","no":"81","r":"R4081","name":"野菜たっぷりスープ春雨","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4082","no":"82","r":"R4082","name":"ラタトゥイユ","min":40,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4083","no":"83","r":"R4083","name":"ロールキャベツ","min":65,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4084","no":"84","r":"R4084","name":"アスパラガス(ゆで)","min":10,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4085","no":"85","r":"R4085","name":"いか(ゆで)","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4086","no":"86","r":"R4086","name":"いも・かぼちゃ(ゆで)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4087","no":"87","r":"R4087","name":"えび(ゆで)","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4088","no":"88","r":"R4088","name":"カレーうどん","min":30,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4089","no":"89","r":"R4089","name":"シーフードのクリームパスタ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4090","no":"90","r":"R4090","name":"シュウマイ(あたため)","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4091","no":"91","r":"R4091","name":"スープパスタ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4092","no":"92","r":"R4092","name":"せいろ蒸し","min":25,"size":"2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4093","no":"93","r":"R4093","name":"ソーセージ","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4094","no":"94","r":"R4094","name":"即席めん(インスタントラーメン)","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4095","no":"95","r":"R4095","name":"ゆで卵","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4096","no":"96","r":"R4096","name":"茶わん蒸し","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4097","no":"97","r":"R4097","name":"ちゃんぽん","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4098","no":"98","r":"R4098","name":"中華まん(あたため)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4099","no":"99","r":"R4099","name":"鶏肉・豚肉(ゆで)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4100","no":"100","r":"R4100","name":"ナポリタン風パスタ","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4101","no":"101","r":"R4101","name":"にゅうめん","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4102","no":"102","r":"R4102","name":"ブロッコリー(ゆで)","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4103","no":"103","r":"R4103","name":"ほうれん草・小松菜(ゆで)","min":10,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4104","no":"104","r":"R4104","name":"丸ごといも(ゆで)","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4105","no":"105","r":"R4105","name":"煮こみうどん","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4106","no":"106","r":"R4106","name":"あずきの甘酒","min":360,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4107","no":"107","r":"R4107","name":"甘酒","min":360,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4108","no":"108","r":"R4108","name":"温泉卵","min":40,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4109","no":"109","r":"R4109","name":"カスタードクリーム","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4110","no":"110","r":"R4110","name":"クリームチーズ","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4111","no":"111","r":"R4111","name":"小麦パン","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4112","no":"112","r":"R4112","name":"雑穀の甘酒","min":360,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4113","no":"113","r":"R4113","name":"さつまいもの甘酒","min":360,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4114","no":"114","r":"R4114","name":"塩麹","min":360,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4115","no":"115","r":"R4115","name":"シナモンロール","min":70,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4116","no":"116","r":"R4116","name":"ジャム(いちご)","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4117","no":"117","r":"R4117","name":"ジャム(オレンジ)","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4118","no":"118","r":"R4118","name":"ジャム(キウイ)","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4119","no":"119","r":"R4119","name":"しょうゆ麹","min":360,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4120","no":"120","r":"R4120","name":"スポンジケーキ","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4121","no":"121","r":"R4121","name":"だし","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4122","no":"122","r":"R4122","name":"つぶあん","min":150,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4123","no":"123","r":"R4123","name":"手作り豆腐","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4124","no":"124","r":"R4124","name":"手作りみそ","min":480,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4125","no":"125","r":"R4125","name":"にんじんとりんごの甘酒","min":360,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4126","no":"126","r":"R4126","name":"パンプディング","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4127","no":"127","r":"R4127","name":"ブラウニー","min":60,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4128","no":"128","r":"R4128","name":"野菜ジュースのケーキ","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4129","no":"129","r":"R4129","name":"ヨーグルト","min":360,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4130","no":"130","r":"R4130","name":"りんごのコンポート","min":45,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4131","no":"131","r":"R4131","name":"卯の花","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4132","no":"132","r":"R4132","name":"えびとアスパラガスのタルタルソース","min":18,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4133","no":"133","r":"R4133","name":"えびのしょうゆ炒め","min":12,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4134","no":"134","r":"R4134","name":"丸ごとかぼちゃ(下ゆで)","min":40,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4135","no":"135","r":"R4135","name":"かぼちゃのチーズフォンデュ","min":40,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4136","no":"136","r":"R4136","name":"かぼちゃの肉詰め","min":70,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4137","no":"137","r":"R4137","name":"丸ごとキャベツ(下ゆで)","min":20,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4138","no":"138","r":"R4138","name":"キャベツとじゃがいもとあさりの煮物","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4139","no":"139","r":"R4139","name":"ごはん","min":null,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4140","no":"140","r":"R4140","name":"市販のスープあたため","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4141","no":"141","r":"R4141","name":"じゃがいもの甘辛炒め","min":12,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4142","no":"142","r":"R4142","name":"スパゲティ","min":35,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4143","no":"143","r":"R4143","name":"卵入りトマトスープ","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4144","no":"144","r":"R4144","name":"とうもろこし(丸ごとゆで)","min":20,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4145","no":"145","r":"R4145","name":"肉の油抜き","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4146","no":"146","r":"R4146","name":"煮こみハンバーグ","min":40,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4147","no":"147","r":"R4147","name":"にんじんと豚肉の炒め物","min":12,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4148","no":"148","r":"R4148","name":"パン生地の発酵","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4149","no":"149","r":"R4149","name":"カラフルサラダ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4150","no":"150","r":"R4150","name":"鶏むね肉とパプリカのトマト塩麹煮","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4151","no":"151","r":"R4151","name":"蒸し野菜のバーニャカウダ","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4152","no":"152","r":"R4152","name":"りんごのケーキ","min":55,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4153","no":"153","r":"R4153","name":"海の幸のホイル蒸し","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4154","no":"154","r":"R4154","name":"卵入りポテトサラダ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4155","no":"155","r":"R4155","name":"そうめん","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4156","no":"156","r":"R4156","name":"フルーツソース（いちご）","min":40,"size":"","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4157","no":"157","r":"R4157","name":"ゆでめん（冷凍/冷蔵）","min":15,"size":"","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4158","no":"158","r":"R4158","name":"彩り野菜のナポリタン","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4159","no":"159","r":"R4159","name":"牛すじカレー","min":65,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4191","no":"191","r":"R4191","name":"いも煮","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4192","no":"192","r":"R4192","name":"かんぴょうの煮物","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4193","no":"193","r":"R4193","name":"じゃっぱ汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4194","no":"194","r":"R4194","name":"たこのやわらか煮","min":60,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4195","no":"195","r":"R4195","name":"のっぺい汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4196","no":"196","r":"R4196","name":"ぼっかけ汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4197","no":"197","r":"R4197","name":"ホワイトアスパラのクリームシチュー","min":45,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4198","no":"198","r":"R4198","name":"みそ煮こみうどん","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4199","no":"199","r":"R4199","name":"れんこんきんぴら","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4200","no":"200","r":"R4200","name":"鶏ちゃん焼き","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4201","no":"201","r":"R4201","name":"三枚肉の煮つけ","min":90,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4202","no":"202","r":"R4202","name":"茶がゆ","min":80,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4203","no":"203","r":"R4203","name":"治部煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4204","no":"204","r":"R4204","name":"あさりの蒸し煮","min":17,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4205","no":"205","r":"R4205","name":"じゃがいもの冷製スープ　ジュレのせ","min":40,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4206","no":"206","r":"R4206","name":"皮ごといちじくのコンポート","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4207","no":"207","r":"R4207","name":"無水ナポリタン","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4208","no":"208","r":"R4208","name":"勝間流たっぷり野菜の蒸し煮(ブレイズ)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4209","no":"209","r":"R4209","name":"勝間流具だくさんみそ汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4210","no":"210","r":"R4210","name":"いかと青菜の四川風","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4211","no":"211","r":"R4211","name":"いなり煮こみ","min":55,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4212","no":"212","r":"R4212","name":"鶏の甘辛煮","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4213","no":"213","r":"R4213","name":"鶏とゆで卵の甘辛煮","min":40,"size":"","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4214","no":"214","r":"R4214","name":"きのこリゾット","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4215","no":"215","r":"R4215","name":"とうもろこしごはん","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4216","no":"216","r":"R4216","name":"えのきとほたてのスープ","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4217","no":"217","r":"R4217","name":"えびとセロリのうま煮","min":10,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4218","no":"218","r":"R4218","name":"豚ブロック肉のだし煮","min":80,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4219","no":"219","r":"R4219","name":"なすの揚げ焼き","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4220","no":"220","r":"R4220","name":"丸ごとロールレタス","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4221","no":"221","r":"R4221","name":"ルーを使わないチキンカレー","min":65,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4222","no":"222","r":"R4222","name":"ジャージャーそうめん","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4223","no":"223","r":"R4223","name":"彩り野菜と鶏肉のトマト煮","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4224","no":"224","r":"R4224","name":"ポテトサラダ","min":22,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4225","no":"225","r":"R4225","name":"かぶと牛肉のカレー風味","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4227","no":"227","r":"R4227","name":"かぼちゃのカレーあんかけ","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4228","no":"228","r":"R4228","name":"カット野菜のスープあんかけ","min":20,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4229","no":"229","r":"R4229","name":"サラダチキンときのこの塩こうじパスタ","min":28,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4230","no":"230","r":"R4230","name":"チキンハーブハム","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4231","no":"231","r":"R4231","name":"アクアパッツァ(切り身魚)","min":20,"size":"1.0/1.6","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4232","no":"232","r":"R4232","name":"サムゲタン風スープ","min":60,"size":"1.6","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4233","no":"233","r":"R4233","name":"手羽元のタンドリー煮","min":60,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4234","no":"234","r":"R4234","name":"いわしの甘露煮","min":60,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4235","no":"235","r":"R4235","name":"キムチ豆腐","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4236","no":"236","r":"R4236","name":"キャベツカレー","min":45,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4237","no":"237","r":"R4237","name":"殻付きあさりのクラムチャウダー","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4238","no":"238","r":"R4238","name":"うすいえんどうのケークサレ","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4239","no":"239","r":"R4239","name":"さっぱり鶏ももチャーシュー","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4240","no":"240","r":"R4240","name":"ツナキャベツのカレーマヨ風味","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4241","no":"241","r":"R4241","name":"蒸し野菜","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4242","no":"242","r":"R4242","name":"大根とひき肉でとろ～り煮物","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4243","no":"243","r":"R4243","name":"きゅうりと豚肉の炒め物","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4244","no":"244","r":"R4244","name":"ささ身(ゆで)","min":20,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4245","no":"245","r":"R4245","name":"さけのみそ汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4251","no":"251","r":"R4251","name":"カンタン煮魚","min":20,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4252","no":"252","r":"R4252","name":"カット野菜で１品(野菜炒め)","min":20,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4253","no":"253","r":"R4253","name":"蒸し豆","min":60,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4254","no":"254","r":"R4254","name":"ししとうといかのカレー炒め","min":12,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4255","no":"255","r":"R4255","name":"焼きそば","min":20,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4256","no":"256","r":"R4256","name":"きのこうどん","min":20,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4257","no":"257","r":"R4257","name":"じゃがいものみそシチュー","min":45,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4258","no":"258","r":"R4258","name":"じゃがいもとれんこんの炒め煮","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4259","no":"259","r":"R4259","name":"しょうがのスープ","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4260","no":"260","r":"R4260","name":"しょうゆ枝豆","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4261","no":"261","r":"R4261","name":"肉豆腐","min":15,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4262","no":"262","r":"R4262","name":"飲茶セット","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4263","no":"263","r":"R4263","name":"イタリアンセット","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4264","no":"264","r":"R4264","name":"チーズフォンデュ","min":15,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4265","no":"265","r":"R4265","name":"酒の肴セット","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4266","no":"266","r":"R4266","name":"どんぶりの具＆冷凍ごはん(牛どん)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4267","no":"267","r":"R4267","name":"炊飯(１合)＆おかず","min":50,"size":"1.0","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4268","no":"268","r":"R4268","name":"鶏と大根の煮物","min":35,"size":"1.0/1.6","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4269","no":"269","r":"R4269","name":"塩麹","min":360,"size":"1.0/1.6","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4270","no":"270","r":"R4270","name":"ペンネアラビアータ","min":25,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4271","no":"271","r":"R4271","name":"麻婆豆腐＆小籠包(ショウロンポウ)","min":25,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4272","no":"272","r":"R4272","name":"さば缶トマト煮こみ＆蒸し野菜","min":25,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4273","no":"273","r":"R4273","name":"チーズリゾット＆巣ごもり卵","min":25,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4274","no":"274","r":"R4274","name":"かれいの煮つけ＆もやしの簡単ナムル","min":15,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4275","no":"275","r":"R4275","name":"さば缶と大根の煮物＆蒸しベーコン","min":15,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4276","no":"276","r":"R4276","name":"麻婆豆腐＆冷凍ごはん","min":35,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4277","no":"277","r":"R4277","name":"ドライカレー＆冷凍ごはん","min":30,"size":"1.0","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4278","no":"278","r":"R4278","name":"ローストビーフ","min":195,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4279","no":"279","r":"R4279","name":"ローストポーク","min":120,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4280","no":"280","r":"R4280","name":"サラダチキン","min":70,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4281","no":"281","r":"R4281","name":"ツナ","min":50,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4282","no":"282","r":"R4282","name":"砂肝のオイル煮","min":80,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4283","no":"283","r":"R4283","name":"オープンオムレツ","min":55,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4284","no":"284","r":"R4284","name":"じゃがいものガレット","min":25,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4286","no":"286","r":"R4286","name":"ニラとあさりの酒蒸し","min":13,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4287","no":"287","r":"R4287","name":"シュウマイ(手作り)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4288","no":"288","r":"R4288","name":"にんじんのグラッセ","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4289","no":"289","r":"R4289","name":"にんじん(ゆで)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4290","no":"290","r":"R4290","name":"ごはん(２合)＆おかず","min":50,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4291","no":"291","r":"R4291","name":"牛肉の赤ワイン煮","min":110,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4292","no":"292","r":"R4292","name":"骨付きチキンのバスク風煮込み","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4293","no":"293","r":"R4293","name":"ニラ入りオムレツ","min":45,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4294","no":"294","r":"R4294","name":"ぶりのおろし煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4295","no":"295","r":"R4295","name":"トマトオムレツ","min":50,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4296","no":"296","r":"R4296","name":"ツナじゃがオムレツ","min":50,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4297","no":"297","r":"R4297","name":"べっこう煮","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4298","no":"298","r":"R4298","name":"にんじんのガレット","min":25,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4299","no":"299","r":"R4299","name":"玉ねぎのガレット","min":25,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4300","no":"300","r":"R4300","name":"ほたて貝ともやしの蒸し物","min":12,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4301","no":"301","r":"R4301","name":"ミネストローネ","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4302","no":"302","r":"R4302","name":"豆腐オムレツ","min":50,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4303","no":"303","r":"R4303","name":"ひじきオムレツ","min":50,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4304","no":"304","r":"R4304","name":"わかめスープ","min":25,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4305","no":"305","r":"R4305","name":"かす汁","min":30,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4306","no":"306","r":"R4306","name":"手羽先のコラーゲンスープ","min":60,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4307","no":"307","r":"R4307","name":"夏野菜の冷製煮物","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4308","no":"308","r":"R4308","name":"しじみのみそ汁","min":30,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4309","no":"309","r":"R4309","name":"かきたま汁","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4310","no":"310","r":"R4310","name":"きのこスープ","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4311","no":"311","r":"R4311","name":"きのこチャウダー","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4312","no":"312","r":"R4312","name":"きのこミネストローネ","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4313","no":"313","r":"R4313","name":"きのこシチュー","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4314","no":"314","r":"R4314","name":"きのこじゃが","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4315","no":"315","r":"R4315","name":"ピリ辛スープ","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4316","no":"316","r":"R4316","name":"みぞれ汁","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4317","no":"317","r":"R4317","name":"玉ねぎと牛肉の当座煮","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4318","no":"318","r":"R4318","name":"五目麻婆春雨","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4319","no":"319","r":"R4319","name":"たらとじゃがいものポタージュ","min":40,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4320","no":"320","r":"R4320","name":"これうま！とろとろロールキャベツ","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4321","no":"321","r":"R4321","name":"これうま！コクうまブイヤベース","min":60,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4322","no":"322","r":"R4322","name":"これうま！ワンポットツナパスタ","min":28,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4323","no":"323","r":"R4323","name":"ゆで栗","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4324","no":"324","r":"R4324","name":"栗ごはん","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4325","no":"325","r":"R4325","name":"小松菜と桜えびのサッと煮","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4326","no":"326","r":"R4326","name":"春野菜とえびの塩麹蒸し","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4327","no":"327","r":"R4327","name":"鶏とプルーンのバルサミコ煮こみ","min":60,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4328","no":"328","r":"R4328","name":"手作り甘酒のバナナケーキ","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4329","no":"329","r":"R4329","name":"お手軽！だし香るふっくらチキンの和風カレー","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4330","no":"330","r":"R4330","name":"だし旨 無水 豚バラ大根","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4331","no":"331","r":"R4331","name":"やわらかチャーシュー","min":120,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4332","no":"332","r":"R4332","name":"お米入りミートボール","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4333","no":"333","r":"R4333","name":"鶏肉のレモンクリーム煮","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4334","no":"334","r":"R4334","name":"豚汁","min":25,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4335","no":"335","r":"R4335","name":"濃厚カスタードプリン(cotta)","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4336","no":"336","r":"R4336","name":"とろけるスフレチーズケーキ(cotta)","min":75,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4337","no":"337","r":"R4337","name":"簡単ガトーショコラ(cotta)","min":70,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4338","no":"338","r":"R4338","name":"シンプルちぎりパン(cotta)","min":70,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4339","no":"339","r":"R4339","name":"シナモンロール(cotta)","min":70,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4340","no":"340","r":"R4340","name":"ピザ(cotta)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4341","no":"341","r":"R4341","name":"ポトフごはん","min":70,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4342","no":"342","r":"R4342","name":"玄米ごはん","min":null,"size":"全","lim":"","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4343","no":"343","r":"R4343","name":"麻婆豆腐","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4344","no":"344","r":"R4344","name":"白身魚としめじのサッと煮","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4345","no":"345","r":"R4345","name":"ビーフシチュー(市販ルウ使用)","min":45,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4346","no":"346","r":"R4346","name":"白菜とツナのしょうゆ煮","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4347","no":"347","r":"R4347","name":"たいのトマト蒸し","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4349","no":"349","r":"R4349","name":"さば缶のカレークリームパスタ","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4350","no":"350","r":"R4350","name":"ごろごろ野菜のチーズシチュー","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4351","no":"351","r":"R4351","name":"ゆず香る鶏手羽のぽん酢煮","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4352","no":"352","r":"R4352","name":"「味ぽん」魯肉飯","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4353","no":"353","r":"R4353","name":"ほろほろチキンの甘酒カレー","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4354","no":"354","r":"R4354","name":"甘酒豚角煮肉じゃが","min":95,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4355","no":"355","r":"R4355","name":"厚切り大根と鶏手羽元のさっぱり煮","min":45,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4357","no":"357","r":"R4357","name":"若竹煮","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4358","no":"358","r":"R4358","name":"コーンスープリゾット","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4359","no":"359","r":"R4359","name":"ゴーヤと豚のキムチ炒め","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4360","no":"360","r":"R4360","name":"とうもろこしとスペアリブのスープ","min":60,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4361","no":"361","r":"R4361","name":"ちぎりパン","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4362","no":"362","r":"R4362","name":"かぼちゃのプリン","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4363","no":"363","r":"R4363","name":"いかとトマトのイタリアンサラダ","min":10,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4364","no":"364","r":"R4364","name":"鶏としいたけのスープ","min":60,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4366","no":"366","r":"R4366","name":"牛肉のしょうゆ煮","min":90,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4367","no":"367","r":"R4367","name":"ブロッコリーとにんじんの炒め物","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4368","no":"368","r":"R4368","name":"ポークカレー","min":65,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4369","no":"369","r":"R4369","name":"ひき肉と卵の鉢蒸し","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4370","no":"370","r":"R4370","name":"牛すじモツ丼","min":90,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4371","no":"371","r":"R4371","name":"牛タンシチュー","min":85,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4372","no":"372","r":"R4372","name":"鶏モツ","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4373","no":"373","r":"R4373","name":"煮あえっこ","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4374","no":"374","r":"R4374","name":"棒だら煮","min":130,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4375","no":"375","r":"R4375","name":"鶏のふっくらつや煮","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4376","no":"376","r":"R4376","name":"豆花(トゥファ)","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4377","no":"377","r":"R4377","name":"冬瓜のえびあんかけ","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4378","no":"378","r":"R4378","name":"和風あん","min":10,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4379","no":"379","r":"R4379","name":"かぼちゃのそぼろあんかけ","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4380","no":"380","r":"R4380","name":"かぼちゃのポテトサラダ","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4381","no":"381","r":"R4381","name":"根菜サラダ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4382","no":"382","r":"R4382","name":"小松菜とちりめんじゃこのあえ物","min":10,"size":"全","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4383","no":"383","r":"R4383","name":"大根たっぷり鶏肉のオイスター煮","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4384","no":"384","r":"R4384","name":"えびと大根のとろとろ煮","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4385","no":"385","r":"R4385","name":"豆腐の中華あんかけ","min":29,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4386","no":"386","r":"R4386","name":"豚キムチ","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4387","no":"387","r":"R4387","name":"ポテトサラダ(ゆで～つぶし)","min":25,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4388","no":"388","r":"R4388","name":"ポテトコロッケの具","min":35,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4389","no":"389","r":"R4389","name":"かぼちゃコロッケの具","min":35,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4391","no":"391","r":"R4391","name":"ホイップクリーム(クリーム)","min":3,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4392","no":"392","r":"R4392","name":"オープンオムレツ(材料まぜ～焼き上げ)","min":55,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4393","no":"393","r":"R4393","name":"肉じゃがコロッケの具","min":35,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4394","no":"394","r":"R4394","name":"ホイップクリーム(乳等主要原料食品)","min":5,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4395","no":"395","r":"R4395","name":"アイスクリーム","min":3,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4396","no":"396","r":"R4396","name":"ベジスライスホイコーロー(亀田製菓)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4397","no":"397","r":"R4397","name":"ベジフィレ肉じゃが(亀田製菓)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4398","no":"398","r":"R4398","name":"クーブイリチー","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4399","no":"399","r":"R4399","name":"ベジミンチミートソース(亀田製菓)","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4400","no":"400","r":"R4400","name":"もやしとニラの炒め物","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4405","no":"405","r":"R4405","name":"豚肉となすの炒め物","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4406","no":"406","r":"R4406","name":"ハヤシライスソース","min":65,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4407","no":"407","r":"R4407","name":"アップルフィリング","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4408","no":"408","r":"R4408","name":"豚バラ肉と野菜の煮物","min":90,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4409","no":"409","r":"R4409","name":"さつまいもとパイナップルのカンタンケーキ","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4410","no":"410","r":"R4410","name":"牛肉のトマト煮こみ","min":65,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4411","no":"411","r":"R4411","name":"れんこんのすりながし汁","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4412","no":"412","r":"R4412","name":"トマトライス","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4413","no":"413","r":"R4413","name":"バナナチョコ蒸しパン","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4414","no":"414","r":"R4414","name":"かぶら蒸し","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4415","no":"415","r":"R4415","name":"鶏肉とキャベツの蒸し物","min":31,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4416","no":"416","r":"R4416","name":"ごぼうサラダ","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4417","no":"417","r":"R4417","name":"さけとキャベツの白ワイン蒸し","min":33,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4418","no":"418","r":"R4418","name":"鶏とじゃがいもの炒め煮","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4419","no":"419","r":"R4419","name":"鶏とさつまいもの煮物","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4420","no":"420","r":"R4420","name":"鶏肉と野菜のあっさり煮","min":30,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4421","no":"421","r":"R4421","name":"さけときのこのホイル蒸し","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4422","no":"422","r":"R4422","name":"たまご蒸しパン","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4423","no":"423","r":"R4423","name":"八尾若ごぼうの煮びたし","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4424","no":"424","r":"R4424","name":"グラハムパン","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4425","no":"425","r":"R4425","name":"八尾若ごぼうの葉の佃煮","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4426","no":"426","r":"R4426","name":"シーフードカレー","min":65,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4427","no":"427","r":"R4427","name":"みそ煮こみおでん","min":65,"size":"全","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4428","no":"428","r":"R4428","name":"りんごとプルーンのコンポート","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4429","no":"429","r":"R4429","name":"ぶどうのコンポート","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4430","no":"430","r":"R4430","name":"カラフル蒸し野菜","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4431","no":"431","r":"R4431","name":"ゆずみそ","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4432","no":"432","r":"R4432","name":"豚バラと里いものみそ煮","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4434","no":"434","r":"R4434","name":"津和野風いも煮","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4435","no":"435","r":"R4435","name":"猪肉のしぐれ煮","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4436","no":"436","r":"R4436","name":"薬膳スパイスチキンカレー","min":50,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4437","no":"437","r":"R4437","name":"ターメリックライス","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4438","no":"438","r":"R4438","name":"桃缶から作る桃チャツネ","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4439","no":"439","r":"R4439","name":"オクラと玉ねぎのサブジ","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4440","no":"440","r":"R4440","name":"タンドーリチキン","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4441","no":"441","r":"R4441","name":"さけのゆずぽん酢蒸し","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4442","no":"442","r":"R4442","name":"豚の角煮～ゆずぽん酢仕立て～","min":120,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4443","no":"443","r":"R4443","name":"なすとししとうの揚げびたし風","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4444","no":"444","r":"R4444","name":"さば缶となすのトマトソースパスタ","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4445","no":"445","r":"R4445","name":"「ほぼカニ」トマトパスタ","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4446","no":"446","r":"R4446","name":"「ほぼカニ」あんかけオムレツ","min":65,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4447","no":"447","r":"R4447","name":"「ほぼカニ」と「豆乳揚げだし」の和風ポトフ","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4448","no":"448","r":"R4448","name":"濃厚ミルクスープパスタ","min":32,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4449","no":"449","r":"R4449","name":"「カンタン酢」で作るトロトロ角煮","min":110,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4450","no":"450","r":"R4450","name":"甘酒チーズダッカルビ鍋","min":60,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4451","no":"451","r":"R4451","name":"鶏手羽と根菜の甘酒参鶏湯(サムゲタン)","min":90,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4452","no":"452","r":"R4452","name":"おかゆ(離乳食)","min":55,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4453","no":"453","r":"R4453","name":"蒸し野菜(離乳食)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4454","no":"454","r":"R4454","name":"野菜だし","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4455","no":"455","r":"R4455","name":"コーンシチュー(離乳食)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4456","no":"456","r":"R4456","name":"白身魚と野菜のとろみあえ(離乳食)","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4457","no":"457","r":"R4457","name":"スープパスタ(離乳食)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4458","no":"458","r":"R4458","name":"パンプディング(離乳食)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4459","no":"459","r":"R4459","name":"煮うどん(離乳食)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4460","no":"460","r":"R4460","name":"トマトソース(離乳食)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4461","no":"461","r":"R4461","name":"蒸し鶏＆蒸し魚(離乳食)","min":10,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4462","no":"462","r":"R4462","name":"煮しめ","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4463","no":"463","r":"R4463","name":"えびのうま煮","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4464","no":"464","r":"R4464","name":"栗きんとん","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4465","no":"465","r":"R4465","name":"じゃがいものアンチョビチーズクリームソース","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4466","no":"466","r":"R4466","name":"黒豆とさつまいもの温活デトックスおこわ","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4467","no":"467","r":"R4467","name":"しっとりやわらか鶏ハム 2種の発酵タレ添え","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4468","no":"468","r":"R4468","name":"海老としいたけの腸活アジアン春雨蒸し","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4469","no":"469","r":"R4469","name":"肉じゃが(エバラ食品)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4470","no":"470","r":"R4470","name":"やわらか煮豚(エバラ食品)","min":75,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4471","no":"471","r":"R4471","name":"お家で牛丼(エバラ食品)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4472","no":"472","r":"R4472","name":"鶏手羽と大根の煮物(エバラ食品)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4473","no":"473","r":"R4473","name":"お手軽！さばの味噌煮(エバラ食品)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4474","no":"474","r":"R4474","name":"ひじき煮(エバラ食品)","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4475","no":"475","r":"R4475","name":"切り干し大根煮(エバラ食品)","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4476","no":"476","r":"R4476","name":"五目煮豆(エバラ食品)","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4477","no":"477","r":"R4477","name":"金目鯛の煮つけ(エバラ食品)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4478","no":"478","r":"R4478","name":"カレイの煮つけ(エバラ食品)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4479","no":"479","r":"R4479","name":"チキンと冬瓜のココナッツミルク煮","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4480","no":"480","r":"R4480","name":"とうもろこし入り はと麦茶飯","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4481","no":"481","r":"R4481","name":"サーモンとポテトのガーリックバター炒め","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4482","no":"482","r":"R4482","name":"丸ごとトマトの美白＆湿気排出スープ","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4483","no":"483","r":"R4483","name":"ルーローハン(エバラ食品)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4484","no":"484","r":"R4484","name":"韓国風ピリ辛炊き込みごはん(エバラ食品)","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4485","no":"485","r":"R4485","name":"まんまるおおきなホットケーキ(SHOWA)","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4486","no":"486","r":"R4486","name":"簡単基本のスポンジケーキ(SHOWA)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4487","no":"487","r":"R4487","name":"まるでメロンなまんまるショートケーキ(SHOWA)","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4488","no":"488","r":"R4488","name":"チョコレートガナッシュケーキ(SHOWA)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4489","no":"489","r":"R4489","name":"スイートポテトとココアの２層ケーキ(SHOWA)","min":55,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4490","no":"490","r":"R4490","name":"レアベイクドチーズケーキ(SHOWA)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4491","no":"491","r":"R4491","name":"抹茶とグレープフルーツのホワイトガナッシュケーキ(SHOWA)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4492","no":"492","r":"R4492","name":"かぼちゃのジャックオランタンケーキ(SHOWA)","min":50,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4493","no":"493","r":"R4493","name":"まんまるティラミスケーキ(SHOWA)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4494","no":"494","r":"R4494","name":"まるでたこ焼なチョコバナナケーキ(SHOWA)","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4495","no":"495","r":"R4495","name":"オニオンチーズブレッド(SHOWA)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4496","no":"496","r":"R4496","name":"おおきなハンバーガー風サンドイッチ(SHOWA)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4497","no":"497","r":"R4497","name":"軟飯(離乳食)","min":55,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4498","no":"498","r":"R4498","name":"手羽元と玉ねぎの黒酢煮","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4499","no":"499","r":"R4499","name":"シーフードクリームリゾット","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4501","no":"501","r":"R4501","name":"ミートボールのトマトシチュー(ホットクック部)","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4502","no":"502","r":"R4502","name":"じゃがいもとピーマンのオイスターソース炒め(ホットクック部)","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4503","no":"503","r":"R4503","name":"牛肉トマト丼(ホットクック部)","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4504","no":"504","r":"R4504","name":"チョコっと蒸しパン(ホットクック部)","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4505","no":"505","r":"R4505","name":"トマトクリームシチュー(ホットクック部)","min":45,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4506","no":"506","r":"R4506","name":"ブロッコリーのケークサレ(ホットクック部)","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4507","no":"507","r":"R4507","name":"さつまいもとりんごのレモン煮(ホットクック部)","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4508","no":"508","r":"R4508","name":"スイートポテト(ホットクック部)","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4509","no":"509","r":"R4509","name":"野菜たっぷりスープパスタ(ホットクック部)","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4510","no":"510","r":"R4510","name":"トマトチーズパン(ホットクック部)","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4511","no":"511","r":"R4511","name":"シュクメルリ(ホットクック部)","min":40,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4512","no":"512","r":"R4512","name":"りんごの豚肉巻き(ホットクック部)","min":20,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4513","no":"513","r":"R4513","name":"いわしの缶詰を使って丼！！(ホットクック部)","min":15,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4514","no":"514","r":"R4514","name":"ラ・フランスのコンポート(ホットクック部)","min":45,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4515","no":"515","r":"R4515","name":"りんごづくし(ホットクック部)","min":70,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4516","no":"516","r":"R4516","name":"煮込みハンバーグと温野菜(楽チンきちんとライフMiho)","min":40,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4517","no":"517","r":"R4517","name":"豚の生姜焼き(楽チンきちんとライフMiho)","min":10,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4518","no":"518","r":"R4518","name":"２段調理で簡単焼きそば(楽チンきちんとライフMiho)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4520","no":"520","r":"R4520","name":"ごはん(無洗米)","min":null,"size":"1.6/2.4","lim":"H","yoyaku":true,"cloud":false},
+{"source":"sharp","sourceId":"R4521","no":"521","r":"R4521","name":"ごはん(早炊き)","min":null,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4522","no":"522","r":"R4522","name":"ごはん(ふっくら)","min":null,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4523","no":"523","r":"R4523","name":"ごはん(しゃっきり)","min":null,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4524","no":"524","r":"R4524","name":"赤飯","min":null,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4525","no":"525","r":"R4525","name":"炊きこみごはん","min":null,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4526","no":"526","r":"R4526","name":"山菜おこわ","min":null,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4527","no":"527","r":"R4527","name":"チンジャオロースー","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4528","no":"528","r":"R4528","name":"牛肉と大根のピリ辛炒め","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4529","no":"529","r":"R4529","name":"牛肉と糸こんにゃくの甘辛煮","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4530","no":"530","r":"R4530","name":"牛肉と水菜の煮物","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4531","no":"531","r":"R4531","name":"さば缶のみぞれ煮","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4532","no":"532","r":"R4532","name":"鶏肉ときくらげのとろみ煮","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4533","no":"533","r":"R4533","name":"厚揚げの肉みそあえ","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4534","no":"534","r":"R4534","name":"ウインナーとキャベツの炒め物","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4535","no":"535","r":"R4535","name":"ウインナーと冷凍ポテトのマスタード炒め","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4536","no":"536","r":"R4536","name":"たことズッキーニのバター炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4537","no":"537","r":"R4537","name":"いかのトマト煮","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4538","no":"538","r":"R4538","name":"えびのチリソース","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4539","no":"539","r":"R4539","name":"さば缶のキムチ炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4540","no":"540","r":"R4540","name":"野菜のカレー炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4541","no":"541","r":"R4541","name":"貝柱とブロッコリーの炒め物","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4542","no":"542","r":"R4542","name":"にんじんのたらこ炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4543","no":"543","r":"R4543","name":"ちくわとピーマンのおかかあえ","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4544","no":"544","r":"R4544","name":"もやしとツナのポン酢炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4545","no":"545","r":"R4545","name":"さつま揚げと豆苗のサッと煮","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4546","no":"546","r":"R4546","name":"チャプチェ","min":15,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":false},
+{"source":"sharp","sourceId":"R4547","no":"547","r":"R4547","name":"青椒肉絲(チンジャオロウスー)(味の素)","min":20,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4548","no":"548","r":"R4548","name":"干焼蝦仁(カンシャオシャーレン)(味の素)","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4549","no":"549","r":"R4549","name":"八宝菜(味の素)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4550","no":"550","r":"R4550","name":"白菜のクリーム煮(味の素)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4551","no":"551","r":"R4551","name":"豚肉ともやしの四川香味炒め(味の素)","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4552","no":"552","r":"R4552","name":"四川式麻婆豆腐(マーボドーフ)(味の素)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4553","no":"553","r":"R4553","name":"麻婆茄子(マーボチェズ)(味の素)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4554","no":"554","r":"R4554","name":"東インドオリッサのミルクシチュー(東京マサラ部)","min":40,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4601","no":"601","r":"R4601","name":"まるごとミートローフバーグ","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4602","no":"602","r":"R4602","name":"豚肉のレモンクリームソテー","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4603","no":"603","r":"R4603","name":"豚肉と大根の和風カレー","min":45,"size":"1.6/2.4","lim":"","yoyaku":true,"cloud":true},
+{"source":"sharp","sourceId":"R4604","no":"604","r":"R4604","name":"豚肩ロース肉のトマト香草煮","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4605","no":"605","r":"R4605","name":"とうもろこし(蒸す)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4606","no":"606","r":"R4606","name":"ブロッコリー(蒸す)","min":10,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4607","no":"607","r":"R4607","name":"鶏のしょうが煮","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4608","no":"608","r":"R4608","name":"かぶのそぼろあえ","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4609","no":"609","r":"R4609","name":"蒸しかぶらの梅肉あえ","min":10,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4610","no":"610","r":"R4610","name":"白菜と塩昆布の重ね煮","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4611","no":"611","r":"R4611","name":"カラフル野菜のマスタードあえ","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4612","no":"612","r":"R4612","name":"ブロッコリーの梅マヨネーズあえ","min":10,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4613","no":"613","r":"R4613","name":"もやしとウインナーのカレー炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4614","no":"614","r":"R4614","name":"豆苗ともやしのねぎ塩あえ","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4615","no":"615","r":"R4615","name":"にんじんと小松菜のサラダ","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4616","no":"616","r":"R4616","name":"キャベツとツナのからしじょうゆあえ","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4617","no":"617","r":"R4617","name":"しそじゃが","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4618","no":"618","r":"R4618","name":"ポテトとキャベツのガーリック風味","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4619","no":"619","r":"R4619","name":"なすとししとうの煮物","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4620","no":"620","r":"R4620","name":"じゃがいもときのこの煮物","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4621","no":"621","r":"R4621","name":"かぼちゃリゾット","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4622","no":"622","r":"R4622","name":"チーズリゾット","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4623","no":"623","r":"R4623","name":"きのこカレー","min":50,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4624","no":"624","r":"R4624","name":"高野豆腐とえびの卵とじ","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4625","no":"625","r":"R4625","name":"皿うどん","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4626","no":"626","r":"R4626","name":"親子丼","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4627","no":"627","r":"R4627","name":"中華丼","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4628","no":"628","r":"R4628","name":"キャベツとゆで鶏の中華風","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4629","no":"629","r":"R4629","name":"ゆで鶏ののりソースがけ","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4630","no":"630","r":"R4630","name":"スパイシーソーセージ","min":10,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4631","no":"631","r":"R4631","name":"アスパラとえびのサラダ","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4632","no":"632","r":"R4632","name":"肉だんごのもち米蒸し","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4633","no":"633","r":"R4633","name":"しいたけシュウマイ","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4634","no":"634","r":"R4634","name":"皮なしシュウマイ","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4635","no":"635","r":"R4635","name":"さけと野菜の紙包み蒸し","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4636","no":"636","r":"R4636","name":"ガトーショコラ","min":65,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4637","no":"637","r":"R4637","name":"チョコマーブルチーズケーキ","min":95,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4638","no":"638","r":"R4638","name":"ひじきごはん","min":55,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4639","no":"639","r":"R4639","name":"いかとセロリのガーリックバター炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4640","no":"640","r":"R4640","name":"えびとアスパラのさっぱり蒸し","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4641","no":"641","r":"R4641","name":"さけの香味蒸し煮","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4642","no":"642","r":"R4642","name":"鶏肉とキャベツのトマト煮こみ","min":70,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4643","no":"643","r":"R4643","name":"えびのガーリック炒め","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4644","no":"644","r":"R4644","name":"さけのタルタルソース焼き","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4727","no":"727","r":"R4727","name":"とろうま！牛すじ大根ゆずぽん酢煮込み","min":80,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4728","no":"728","r":"R4728","name":"じゃがいもと鶏肉のおかか煮","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4729","no":"729","r":"R4729","name":"チーズポテト","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4730","no":"730","r":"R4730","name":"鶏のトマトクリームチーズ煮","min":65,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4731","no":"731","r":"R4731","name":"さば大根","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4732","no":"732","r":"R4732","name":"さばじゃが","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4733","no":"733","r":"R4733","name":"ほぼカニのクリームパスタ","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4734","no":"734","r":"R4734","name":"ほぼカニとうま染み大根のあんかけ","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4735","no":"735","r":"R4735","name":"レモンベイクドチーズケーキ","min":100,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4736","no":"736","r":"R4736","name":"レモンのさっぱり鶏手羽煮込み","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4737","no":"737","r":"R4737","name":"きのこのケークサレ","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4738","no":"738","r":"R4738","name":"きのこのお好み焼き風","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4739","no":"739","r":"R4739","name":"きのこのうま味たっぷりトマトソース","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4740","no":"740","r":"R4740","name":"鶏のさっぱり煮","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4741","no":"741","r":"R4741","name":"シーチキントマトパスタ","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4742","no":"742","r":"R4742","name":"きのこのペペロンチーノ","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4743","no":"743","r":"R4743","name":"コーンブレッド","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4744","no":"744","r":"R4744","name":"シーチキンと玉ねぎごろっとおみそ汁","min":25,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4745","no":"745","r":"R4745","name":"プロテインカレー(VALX)","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4746","no":"746","r":"R4746","name":"プロテインバー(VALX)","min":60,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4747","no":"747","r":"R4747","name":"スープカレー","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4748","no":"748","r":"R4748","name":"ジャージャーめん","min":25,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4749","no":"749","r":"R4749","name":"チャーハン","min":30,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4750","no":"750","r":"R4750","name":"手羽元と野菜のナポリタン煮","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4751","no":"751","r":"R4751","name":"子どもも喜ぶ！洋風麻婆豆腐","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4752","no":"752","r":"R4752","name":"パスタソースでスンドゥブ","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4753","no":"753","r":"R4753","name":"丸ごとキャベツのミネストローネ","min":60,"size":"2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4754","no":"754","r":"R4754","name":"スープカレー(GARAKU)","min":95,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4760","no":"760","r":"R4760","name":"玉ねぎのファルシー(スプーンプレス)","min":65,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4761","no":"761","r":"R4761","name":"石狩汁(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4762","no":"762","r":"R4762","name":"いわしとトマトの無水カレー(スプーンプレス)","min":60,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4763","no":"763","r":"R4763","name":"さばと大根のゆずこしょう煮(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4764","no":"764","r":"R4764","name":"牛肉とごぼうの卵とじ(スプーンプレス)","min":40,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4765","no":"765","r":"R4765","name":"カオマンガイ(タイ風チキンライス)(スプーンプレス)","min":85,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4766","no":"766","r":"R4766","name":"マーラーカオ(中華風たまご蒸しケーキ)(スプーンプレス)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4767","no":"767","r":"R4767","name":"さつまいもときのこの豆乳シチュー(スプーンプレス)","min":55,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4768","no":"768","r":"R4768","name":"鶏肉と長いものお手軽参鶏湯(サムゲタン)(スプーンプレス)","min":75,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4769","no":"769","r":"R4769","name":"豚肉と大豆のミネストローネ(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4770","no":"770","r":"R4770","name":"担々風キムチスープ(スプーンプレス)","min":40,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4771","no":"771","r":"R4771","name":"りんごのミルフィーユケーキ(スプーンプレス)","min":55,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4772","no":"772","r":"R4772","name":"鶏むね肉とキャベツのマスタードクリーム煮(スプーンプレス)","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4773","no":"773","r":"R4773","name":"ガンボスープ(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4774","no":"774","r":"R4774","name":"中華風キーマカレー(スプーンプレス)","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4775","no":"775","r":"R4775","name":"麻辣湯(マーラータン)風スープ(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4776","no":"776","r":"R4776","name":"くるみのキャロットケーキ(スプーンプレス)","min":50,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4777","no":"777","r":"R4777","name":"さばのみぞれ煮(スプーンプレス)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4778","no":"778","r":"R4778","name":"トマトとツナのスープパスタ(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4779","no":"779","r":"R4779","name":"バターチキンカレー(スプーンプレス)","min":65,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4780","no":"780","r":"R4780","name":"中華風五目うま煮(スプーンプレス)","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4781","no":"781","r":"R4781","name":"麻婆厚揚げ(スプーンプレス)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4782","no":"782","r":"R4782","name":"チキンと彩り野菜のパエリア風(スプーンプレス)","min":60,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4783","no":"783","r":"R4783","name":"レーズンのミートソース(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4784","no":"784","r":"R4784","name":"ザクザクナッツのルーローハン(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4785","no":"785","r":"R4785","name":"ブルーベリーのスフレチーズケーキ(スプーンプレス)","min":55,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4786","no":"786","r":"R4786","name":"揚げないくるみ入り酢豚(スプーンプレス)","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4787","no":"787","r":"R4787","name":"かぼちゃと豚こまの甘酒煮(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4788","no":"788","r":"R4788","name":"きのことパプリカのマリネソテー(スプーンプレス)","min":10,"size":"1.6/2.4","lim":"H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4789","no":"789","r":"R4789","name":"たっぷり玉ねぎの親子丼(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4790","no":"790","r":"R4790","name":"具だくさん塩豚汁(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4791","no":"791","r":"R4791","name":"厚揚げと小松菜の煮びたし(スプーンプレス)","min":15,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4792","no":"792","r":"R4792","name":"洋風トマト鶏じゃが(スプーンプレス)","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4793","no":"793","r":"R4793","name":"くるみとレーズンのラタトゥイユ(スプーンプレス)","min":40,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4794","no":"794","r":"R4794","name":"鶏肉ときのこのトマト煮(スプーンプレス)","min":65,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4795","no":"795","r":"R4795","name":"鶏手羽の中華風煮こみ(スプーンプレス)","min":50,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4796","no":"796","r":"R4796","name":"かぼちゃの豆乳プリンケーキ(スプーンプレス)","min":45,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4797","no":"797","r":"R4797","name":"大根のきのこそぼろ煮(スプーンプレス)","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4798","no":"798","r":"R4798","name":"ポッサム(韓国風蒸し豚)(スプーンプレス)","min":60,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4799","no":"799","r":"R4799","name":"白菜入り鶏だんごのスープ(スプーンプレス)","min":25,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4800","no":"800","r":"R4800","name":"豚肉とさつまいものハニーマスタード煮(スプーンプレス)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4801","no":"801","r":"R4801","name":"たっぷりきのこのクラムチャウダー(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4802","no":"802","r":"R4802","name":"根菜と豚肉のきんぴら(スプーンプレス)","min":35,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4803","no":"803","r":"R4803","name":"具だくさんのごまミルク豚汁(スプーンプレス)","min":40,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4804","no":"804","r":"R4804","name":"丸ごとトマトのポトフ(スプーンプレス)","min":70,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4805","no":"805","r":"R4805","name":"きのこのみそミルクスープ(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4806","no":"806","r":"R4806","name":"かんづき(黒糖蒸しケーキ)(スプーンプレス)","min":55,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4807","no":"807","r":"R4807","name":"さけの北欧風煮こみ(スプーンプレス)","min":30,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4808","no":"808","r":"R4808","name":"ニラのよだれ鶏(スプーンプレス)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"sharp","sourceId":"R4809","no":"809","r":"R4809","name":"たらと豆苗の中華風塩煮(スプーンプレス)","min":20,"size":"1.6/2.4","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000009","no":"OP","r":"R100000000009","name":"【もっとクック購入者限定公開】インド宮廷風キーマカレー（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000012","no":"OP","r":"R100000000012","name":"【もっとクック購入者限定公開】クラシック欧風ビーフカレー（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000010","no":"OP","r":"R100000000010","name":"【もっとクック購入者限定公開】チキンコルマカレー（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000014","no":"OP","r":"R100000000014","name":"【もっとクック購入者限定公開】葱油ソース（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000011","no":"OP","r":"R100000000011","name":"【もっとクック購入者限定公開】ハイデラバード風ビーフカレー（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000013","no":"OP","r":"R100000000013","name":"【もっとクック購入者限定公開】豚肩ロースの赤ワイン煮こみ（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000001","no":"OP1","r":"R100000000001","name":"チキンポトフ(取り分け離乳食)","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000034","no":"OP10","r":"R100000000034","name":"【1人分】ナポリタン風パスタ（もっとクック専用）","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000035","no":"OP11","r":"R100000000035","name":"【1人分】ひじきの煮物（もっとクック専用）","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000037","no":"OP12","r":"R100000000037","name":"【1人分】ピーマンのじゃこあえ（もっとクック専用）","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000015","no":"OP13","r":"R100000000015","name":"あめ色玉ねぎ（1個）（もっとクック専用）","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000016","no":"OP14","r":"R100000000016","name":"あめ色玉ねぎ（2個）（もっとクック専用）","min":50,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000017","no":"OP15","r":"R100000000017","name":"あめ色玉ねぎ（3個）（もっとクック専用）","min":60,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000018","no":"OP16","r":"R100000000018","name":"あめ色玉ねぎ（4個）（もっとクック専用）","min":75,"size":"2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000020","no":"OP17","r":"R100000000020","name":"あめ色玉ねぎのステーキソース（もっとクック専用）","min":85,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000019","no":"OP18","r":"R100000000019","name":"オニオンスープ（もっとクック専用）","min":120,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000026","no":"OP19","r":"R100000000026","name":"くずもち（もっとクック専用）","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000002","no":"OP2","r":"R100000000002","name":"肉じゃが(取り分け離乳食)","min":35,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000025","no":"OP20","r":"R100000000025","name":"ごま豆腐（もっとクック専用）","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000039","no":"OP21","r":"R100000000039","name":"スパイスカレーの煮こみ（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000038","no":"OP22","r":"R100000000038","name":"スパイスのテンパリング（もっとクック専用）","min":null,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":false},
+{"source":"tarosuke","sourceId":"R100000000023","no":"OP23","r":"R100000000023","name":"タコライス（もっとクック専用）","min":75,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000021","no":"OP24","r":"R100000000021","name":"中華風ひき肉のレタス包み（もっとクック専用）","min":75,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000028","no":"OP25","r":"R100000000028","name":"田楽みそ（もっとクック専用）","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000033","no":"OP26","r":"R100000000033","name":"生チョコ（もっとクック専用）","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000029","no":"OP27","r":"R100000000029","name":"のりの佃煮（もっとクック専用）","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000024","no":"OP28","r":"R100000000024","name":"ひよこ豆のスパイシー炒め（もっとクック専用）","min":75,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000030","no":"OP29","r":"R100000000030","name":"ふりかけ（もっとクック専用）","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000003","no":"OP3","r":"R100000000003","name":"たいのミネストローネ(取り分け離乳食)","min":60,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000031","no":"OP30","r":"R100000000031","name":"ふわふわ卵かけごはん（もっとクック専用）","min":4,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000022","no":"OP31","r":"R100000000022","name":"ミートソース（もっとクック専用）","min":100,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000032","no":"OP32","r":"R100000000032","name":"メレンゲゼリー（もっとクック専用）","min":6,"size":"1.6/2.4","lim":"G/H","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000027","no":"OP33","r":"R100000000027","name":"わらびもち（もっとくっく専用）","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000040","no":"OP34","r":"R100000000040","name":"アルゴビマサラ（もっとクック専用）","min":35,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000041","no":"OP35","r":"R100000000041","name":"本格ルーローハン（もっとクック専用）","min":100,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000042","no":"OP36","r":"R100000000042","name":"ケララ風チキンカレー","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000043","no":"OP37","r":"R100000000043","name":"スペアリブと大根のスパイシー塩角煮","min":75,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000044","no":"OP38","r":"R100000000044","name":"里いものごまみそ煮（もっとクック専用）","min":40,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000045","no":"OP39","r":"R100000000045","name":"絹ごし麻婆豆腐（もっとクック専用）","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000004","no":"OP4","r":"R100000000004","name":"ミルク豚汁(取り分け離乳食)","min":50,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000046","no":"OP40","r":"R100000000046","name":"豆腐のきのこあんかけ（もっとクック専用）","min":20,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000047","no":"OP41","r":"R100000000047","name":"さけときのこのマヨネーズしょうゆ炒め（もっとクック専用）","min":15,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000048","no":"OP42","r":"R100000000048","name":"さつま揚げと刻み昆布の煮物（もっとクック専用）","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000049","no":"OP43","r":"R100000000049","name":"みたらしあん（もっとクック専用）","min":10,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000050","no":"OP44","r":"R100000000050","name":"無水チキンマサラカレー（もっとクック専用）","min":45,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000005","no":"OP5","r":"R100000000005","name":"トマトカレー（取り分け離乳食）","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000006","no":"OP6","r":"R100000000006","name":"さけとブロッコリーのクリーム煮（取り分け離乳食","min":60,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000007","no":"OP7","r":"R100000000007","name":"大根のひき肉あんかけ（取り分け離乳食）","min":65,"size":"全","lim":"","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000008","no":"OP8","r":"R100000000008","name":"ツナと野菜の炊きこみごはん（取り分け離乳食）","min":50,"size":"全","lim":"F/G/H","yoyaku":false,"cloud":true},
+{"source":"tarosuke","sourceId":"R100000000036","no":"OP9","r":"R100000000036","name":"【1人分】きんぴら（もっとクック専用）","min":30,"size":"1.6/2.4","lim":"","yoyaku":false,"cloud":true}
+]
+</script>
+
+<script>
+const PHOTO = r => `https://cocoroplus.jp.sharp/kitchen/recipe/photo_large/${r}.jpg`;
+const LINK  = r => `https://cocoroplus.jp.sharp/kitchen/recipe/hotcook/KN-HW24H/${r}`;
+
+const RECIPES = JSON.parse(document.getElementById('recipe-data').textContent);
+
+/* =========================================================================
+   分類（系統・主材料）は料理名から推定する。
+   元データに系統/材料の列が無いため、ここで名前ベースに導出している。
+   - 誤分類が出たら CAT_RULES / MAIN_RULES の正規表現を直すか、
+     OVERRIDE に「番号: {cat, mains}」で個別修正を書けば上書きされる。
+   - 判定は上から順に最初にマッチした系統を採用（順番＝優先度）。
+   ========================================================================= */
+const CAT_ORDER = ["スイーツ","パン","発酵・ドリンク","カレー","スープ・汁物","鍋",
+  "ごはん・麺","炒め物","蒸し物","焼き・ロースト","煮物","ソース・たれ",
+  "サラダ・和え物","卵料理","ゆで・下ごしらえ","その他"];
+
+const CAT_RULES = [
+  ["スイーツ", /ケーキ|プリン|ガトー|ブラウニー|クッキー|ゼリー|ムース|タルト|チーズ.*ケーキ|チョコ|カスタード|コンポート|ジャム|あんこ|しるこ|ぜんざい|マフィン|スコーン|クレーム|パンナ|ドーナ|大福|プディング|つぶあん|こしあん|栗きんとん|スイートポテト|フィリング|チャツネ|くずもち|わらびもち|くるみもち|みたらし|アイス/],
+  ["パン", /パン|ブレッド|フォカッチャ|ピザ|シナモンロール|ケークサレ/],
+  ["カレー", /カレー|サブジ|タンドーリ|マサラ/],
+  ["スープ・汁物", /スープ|ポタージュ|汁|ミネストローネ|ポトフ|チャウダー|ボルシチ|ブイヤベース|トムヤム|サンラータン|酸辣湯|参鶏湯|サムゲタン|クッパ|コンソメ|ちゃんぽん|にゅうめん|シチュー/],
+  ["鍋", /(?<!回)鍋|おでん|すき焼き|しゃぶ|ちゃんこ|フォンデュ/],
+  ["ごはん・麺", /ごはん|ご飯|ライス|チャーハン|ピラフ|リゾット|パエリア|パスタ|スパゲ|うどん|そば|ラーメン|焼きそば|ビビンバ|カオマンガイ|丼|おこわ|炊き込み|雑炊|おかゆ|カオ|いかめし|そうめん|ナポリタン|ペペロンチーノ|アラビアータ|ペンネ|ボロネーゼ|ジャージャー|ルーロー|魯肉|ガパオ|飯/],
+  ["炒め物", /炒め|きんぴら|チャンプル|ソテー|八宝菜|麻婆|マーボー|チンジャオ|青椒|回鍋|四川|イリチー|酢豚|テンパリング/],
+  ["蒸し物", /蒸し|しゅうまい|シュウマイ|茶碗蒸し|ポッサム|蒸し豚|蒸し鶏|中華まん|レタス包み|ファルシー/],
+  ["焼き・ロースト", /焼き|ロースト|グリル|ハンバーグ|ミートローフ|チャーシュー|照り焼き|ステーキ|ミートボール|ソーセージ|ガレット|コロッケ|肉巻き|肉詰め|ハンバーガー|サンドイッチ|ハーブハム/],
+  ["煮物", /煮|角煮|時雨|しぐれ|甘露|コンフィ|肉じゃが|肉みそ|そぼろ|大根|あら炊き|ふろふき|佃煮|黒豆|五目豆|昆布豆|金時豆|うずら豆|ポークビーンズ|チリコンカン|ビーンズ|ストロガノフ|ラグー|大豆の|ラタトゥイユ|ロールキャベツ|ロールレタス|アクアパッツァ|卯の花|じゃが|あんかけ|グラッセ|豆花|冬瓜|肉豆腐|キムチ豆腐|豚キムチ|よだれ鶏/],
+  ["ソース・たれ", /ソース|たれ|タレ|ドレッシング|ジェノベーゼ|ペースト|ディップ|ケチャップ|バーニャカウダ|和風あん|ふりかけ/],
+  ["サラダ・和え物", /サラダ|和え|あえ|ナムル|マリネ|おひたし|お浸し|浸し|ピクルス|ラペ|白あえ|酢の物|びたし/],
+  ["卵料理", /オムレツ|卵|玉子|キッシュ|オムライス/],
+  ["ゆで・下ごしらえ", /ゆで|温野菜|あたため|下ごしら|ふかし|素揚げ|油抜き|の具$|ツナ|あめ色玉ねぎ/],
+  // 発酵・ドリンクは最後に判定する。甘酒/塩麹/だし/みそ等は「調味料」として料理名に頻出するため、
+  // 先に調理系統（煮/汁/カレー/鍋/蒸し 等）を確定させ、単体の発酵食品・飲料だけをここへ落とす。
+  ["発酵・ドリンク", /甘酒|ヨーグルト|塩麹|塩こうじ|しょうゆ麹|しょうゆこうじ|みそ|味噌|納豆|豆乳|スムージー|ジュース|チャイ|ラッシー|ホットワイン|梅シロップ|コンフィチュール|だし/],
+];
+const MAIN_RULES = [
+  ["鶏", /鶏|チキン|手羽|ささみ|ムネ|むね肉|もも肉|タンドー|サムゲ|参鶏|よだれ鶏/],
+  ["豚", /豚|ポーク|角煮|スペアリブ|ポッサム|チャーシュー|バラ肉|ロース肉|しゃぶ/],
+  ["牛", /牛|ビーフ|すき焼き/],
+  // 部分一致の誤爆をガード: (?<!ん)ぶり=どんぶり除外, (?<!み)たら=みたらし除外,
+  // たこ(?!焼)=たこ焼除外, タコ(?!ライス)=タコライス除外, かきは牡蠣のみ(かき卵除外)
+  ["魚介", /魚|さば|サバ|鯖|さんま|サンマ|秋刀魚|いわし|イワシ|鮭|さけ|サーモン|(?<!ん)ぶり|ブリ|(?<!み)たら|タラ|鱈|えび|エビ|海老|いか|イカ|烏賊|たこ(?!焼)|タコ(?!ライス)|蛸|貝|あさり|ホタテ|帆立|まぐろ|マグロ|かつお|しらす|シーフード|ムール|牡蠣/],
+  ["卵", /卵|玉子|オムレツ|キッシュ/],
+  ["豆・大豆", /大豆|豆腐|納豆|厚揚げ|油揚げ|おから|ひよこ豆|レンズ豆|金時豆|ミックスビーンズ/],
+];
+
+// 番号ごとの手修正（例: OVERRIDE["1"]={cat:"煮物", mains:["豚"]}）。空でOK。
+const OVERRIDE = {
+};
+
+function classify(name){
+  for(const [c,re] of CAT_RULES){ if(re.test(name)) return c; }
+  return "その他";
+}
+function mainsOf(name){
+  const out=[];
+  for(const [m,re] of MAIN_RULES){ if(re.test(name)) out.push(m); }
+  return out;
+}
+// 各レシピに cat / mains を付与（OVERRIDE があれば優先）
+const NO_MAIN_CATS = new Set(["スイーツ","パン"]);   // 甘味・パンに主材料タグは付けない（誤爆の保険）
+RECIPES.forEach(x=>{
+  const o = OVERRIDE[x.no] || {};
+  x.cat   = o.cat   || classify(x.name);
+  x.mains = o.mains || (NO_MAIN_CATS.has(x.cat) ? [] : mainsOf(x.name));
+});
+
+const state = { q:"", sort:"no", size:"", cat:"", main:"", yoyaku:false, cloud:false, notcloud:false, group:false };
+const grid = document.getElementById('grid');
+const empty = document.getElementById('empty');
+const countEl = document.getElementById('count');
+
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function card(x){
+  const el = document.createElement('div');
+  el.className = 'card';
+  const pills = [];
+  if(x.cat) pills.push(`<span class="pill cat">${esc(x.cat)}</span>`);
+  if(x.min!=null) pills.push(`<span class="pill time">⏱ ${x.min}分</span>`);
+  (x.mains||[]).forEach(m=>pills.push(`<span class="pill main">${esc(m)}</span>`));
+  if(x.size && x.size!=="全") pills.push(`<span class="pill">${esc(x.size)}L</span>`);
+  if(x.lim) pills.push(`<span class="pill lim">${esc(x.lim)}限定</span>`);
+  if(x.yoyaku) pills.push(`<span class="pill yoyaku">予約OK</span>`);
+  if(x.cloud) pills.push(`<span class="pill cloud">クラウド</span>`);
+  // 公式Rコードがあれば写真/レシピURLを導出。無ければ（将来のノラ等）x.url があればそれ、
+  // どちらも無ければ番号タイルにフォールバックし、名前はリンクにしない。
+  const href = x.r ? LINK(x.r) : (x.url || "");
+  const thumb = x.r
+    ? `<img loading="lazy" referrerpolicy="no-referrer" src="${PHOTO(x.r)}" alt="${esc(x.name)}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+       <div class="fallback"><strong>No.${esc(x.no)}</strong><span>${esc(x.name)}</span></div>`
+    : `<div class="fallback" style="display:flex"><strong>No.${esc(x.no)}</strong><span>${esc(x.name)}</span></div>`;
+  const nameEl = href
+    ? `<a class="name" href="${href}" target="_blank" rel="noopener">${esc(x.name)}</a>`
+    : `<span class="name">${esc(x.name)}</span>`;
+  el.innerHTML = `
+    <div class="thumb">
+      <div class="num">${esc(x.no)}</div>
+      ${thumb}
+    </div>
+    <div class="body">
+      ${nameEl}
+      <div class="meta">${pills.join('')}</div>
+    </div>`;
+  return el;
+}
+
+function groupHead(label,n){
+  const el=document.createElement('div');
+  el.className='group';
+  el.innerHTML=`<h2>${esc(label)}</h2><span class="gc">${n} 件</span>`;
+  return el;
+}
+
+const collator = new Intl.Collator('ja');
+function sortList(list){
+  const big = 1e9;
+  return list.sort((a,b)=>{
+    if(state.sort==="timeAsc")  return (a.min??big)-(b.min??big);
+    if(state.sort==="timeDesc") return (b.min??-1)-(a.min??-1);
+    if(state.sort==="nameJa")   return collator.compare(a.name,b.name);
+    const na=parseInt(a.no,10), nb=parseInt(b.no,10);
+    if(isNaN(na)||isNaN(nb)) return collator.compare(a.no,b.no);
+    return na-nb;
+  });
+}
+
+function render(){
+  let list = RECIPES.filter(x=>{
+    if(state.size && !(x.size||"").split('/').includes(state.size) && x.size!=="全") return false;
+    if(state.cat && x.cat!==state.cat) return false;
+    if(state.main && !(x.mains||[]).includes(state.main)) return false;
+    if(state.yoyaku && !x.yoyaku) return false;
+    if(state.cloud && !x.cloud) return false;
+    if(state.notcloud && x.cloud) return false;
+    if(state.q){
+      const q = state.q.toLowerCase();
+      if(!(x.name.toLowerCase().includes(q) || String(x.no).includes(q))) return false;
+    }
+    return true;
+  });
+  sortList(list);
+
+  grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  if(state.group){
+    const byCat = new Map();
+    list.forEach(x=>{ (byCat.get(x.cat)||byCat.set(x.cat,[]).get(x.cat)).push(x); });
+    CAT_ORDER.filter(c=>byCat.has(c)).forEach(c=>{
+      const items=byCat.get(c);
+      frag.appendChild(groupHead(c,items.length));
+      items.forEach(x=>frag.appendChild(card(x)));
+    });
+  } else {
+    list.forEach(x=>frag.appendChild(card(x)));
+  }
+  grid.appendChild(frag);
+  empty.hidden = list.length>0;
+  countEl.textContent = `${list.length} / ${RECIPES.length} 件`;
+}
+
+// 系統・主材料のプルダウンを実データ（件数付き）で埋める
+function fillSelect(id, order, counts){
+  const sel=document.getElementById(id);
+  order.filter(k=>counts.get(k)).forEach(k=>{
+    const o=document.createElement('option');
+    o.value=k; o.textContent=`${k}（${counts.get(k)}）`;
+    sel.appendChild(o);
+  });
+}
+(function populateFilters(){
+  const catCounts=new Map(), mainCounts=new Map();
+  RECIPES.forEach(x=>{
+    catCounts.set(x.cat,(catCounts.get(x.cat)||0)+1);
+    (x.mains||[]).forEach(m=>mainCounts.set(m,(mainCounts.get(m)||0)+1));
+  });
+  fillSelect('cat', CAT_ORDER, catCounts);
+  fillSelect('main', MAIN_RULES.map(r=>r[0]), mainCounts);
+})();
+
+// wire up
+let t;
+document.getElementById('q').addEventListener('input',e=>{
+  clearTimeout(t); t=setTimeout(()=>{state.q=e.target.value.trim();render();},120);
+});
+document.getElementById('sort').addEventListener('change',e=>{state.sort=e.target.value;render();});
+document.getElementById('size').addEventListener('change',e=>{state.size=e.target.value;render();});
+document.getElementById('cat').addEventListener('change',e=>{state.cat=e.target.value;render();});
+document.getElementById('main').addEventListener('change',e=>{state.main=e.target.value;render();});
+function toggle(id,key,exclusive){
+  const btn=document.getElementById(id);
+  btn.addEventListener('click',()=>{
+    state[key]=!state[key];
+    if(state[key]&&exclusive){state[exclusive]=false;document.getElementById('f-'+exclusive).setAttribute('aria-pressed','false');}
+    btn.setAttribute('aria-pressed',String(state[key]));
+    render();
+  });
+}
+toggle('f-yoyaku','yoyaku');
+toggle('f-cloud','cloud','notcloud');
+toggle('f-notcloud','notcloud','cloud');
+toggle('f-group','group');
+
+render();
+</script>
+
+<script>
+// PWA: Service Worker 登録（オフライン起動＋写真の端末キャッシュ）。
+// file:// では動かない（https か localhost が必要）。失敗しても通常表示は継続。
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW登録失敗", e));
+  });
+}
+</script>
+</body>
+</html>
