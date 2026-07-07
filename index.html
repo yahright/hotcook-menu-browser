@@ -82,8 +82,18 @@
   main{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
   .grid{
     display:grid;gap:16px;
-    grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+    grid-template-columns:repeat(auto-fill,minmax(185px,1fr));
   }
+  /* リスト表示: 小さめサムネ＋名前＋メタの横並び行。一画面に多く出て一覧性が高い */
+  .grid.list{grid-template-columns:1fr;gap:8px}
+  .grid.list .card{flex-direction:row;align-items:stretch}
+  .grid.list .thumb{width:92px;flex:none;aspect-ratio:auto}
+  .grid.list .body{padding:9px 12px;gap:6px;justify-content:center}
+  .grid.list .num{top:5px;left:5px;font-size:12px;padding:2px 6px}
+  .grid.list .name{font-size:15px;line-height:1.35}
+  .grid.list .pill{font-size:11px;padding:2px 7px}
+  @media (min-width:760px){ .grid.list{grid-template-columns:1fr 1fr;gap:8px 16px} }
+  @media (max-width:520px){ .grid.list .thumb{width:76px} }
   .card{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;
@@ -119,14 +129,15 @@
   .pill.cat{background:#EEF1F4;color:#42576b}
   .pill.main{background:#FBF0E4;color:#8a5a2a}
 
-  /* 系統ごとの見出し（グループ表示時） */
+  /* 系統ごとの見出し（グループ表示時）: 赤アクセントの帯でハッキリ区切る */
   .group{
-    grid-column:1/-1;display:flex;align-items:baseline;gap:10px;
-    margin:10px 2px 0;padding-bottom:7px;border-bottom:1px solid var(--line);
+    grid-column:1/-1;display:flex;align-items:center;gap:10px;
+    margin:20px 0 4px;padding:8px 13px;
+    background:var(--red-soft);border-left:4px solid var(--red);border-radius:0 8px 8px 0;
   }
-  .group:first-child{margin-top:0}
-  .group h2{font-size:15px;font-weight:700;margin:0}
-  .group .gc{font-family:"Roboto Mono",monospace;font-size:12px;color:var(--muted)}
+  .group:first-child{margin-top:2px}
+  .group h2{font-size:16px;font-weight:700;margin:0;color:#b02a20}
+  .group .gc{font-family:"Roboto Mono",monospace;font-size:12px;color:#b02a20;opacity:.8}
 
   .empty{text-align:center;color:var(--muted);padding:80px 20px;font-size:15px}
   footer{max-width:1180px;margin:0 auto;padding:0 20px 50px;color:var(--muted);font-size:12px;line-height:1.7}
@@ -183,10 +194,11 @@
       </div>
       <div class="controls">
         <div class="chips">
+          <button class="chip" id="f-list" aria-pressed="false">リスト表示</button>
+          <button class="chip" id="f-group" aria-pressed="true">系統ごとに見出し</button>
           <button class="chip" id="f-yoyaku" aria-pressed="false">予約できる</button>
           <button class="chip red" id="f-cloud" aria-pressed="false">クラウド限定</button>
           <button class="chip red" id="f-notcloud" aria-pressed="false">本体だけで作れる</button>
-          <button class="chip" id="f-group" aria-pressed="false">系統ごとに見出し</button>
         </div>
       </div>
     </div>
@@ -963,7 +975,7 @@ const MODEL_GROUPS = [
 const MODEL_KEY = "hotcook_model";
 const savedModel = (()=>{ try{ return localStorage.getItem(MODEL_KEY) || ""; }catch(e){ return ""; } })();
 
-const state = { q:"", sort:"no", size:"", cat:"", main:"", model:savedModel, yoyaku:false, cloud:false, notcloud:false, group:false };
+const state = { q:"", sort:"no", size:"", cat:"", main:"", model:savedModel, yoyaku:false, cloud:false, notcloud:false, group:true, list:false };
 const grid = document.getElementById('grid');
 const empty = document.getElementById('empty');
 const countEl = document.getElementById('count');
@@ -1052,6 +1064,7 @@ function render(){
   });
   sortList(list);
 
+  grid.classList.toggle('list', state.list);
   grid.innerHTML = "";
   const frag = document.createDocumentFragment();
   if(state.group){
@@ -1139,6 +1152,7 @@ function toggle(id,key,exclusive){
     render();
   });
 }
+toggle('f-list','list');
 toggle('f-yoyaku','yoyaku');
 toggle('f-cloud','cloud','notcloud');
 toggle('f-notcloud','notcloud','cloud');
