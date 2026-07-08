@@ -136,10 +136,10 @@
   .pill.cat{background:#EEF1F4;color:#42576b}
   .pill.main{background:#FBF0E4;color:#8a5a2a}
   /* 自前リスト（お気に入り/気になる/つくった）のトグル */
-  .marks{display:flex;gap:4px;margin-left:auto;align-items:center;flex:none}
+  .marks{display:flex;gap:6px;margin-left:auto;align-items:center;flex:none;padding:2px 0 2px 10px}
   .mark{
-    cursor:pointer;user-select:none;min-width:27px;height:27px;line-height:25px;text-align:center;
-    border:1px solid var(--line);border-radius:8px;font-size:14px;color:#c4bfb6;background:var(--card);
+    cursor:pointer;user-select:none;min-width:36px;height:36px;line-height:34px;text-align:center;
+    border:1px solid var(--line);border-radius:9px;font-size:17px;color:#c4bfb6;background:var(--card);
   }
   .mark:hover{border-color:#d8d2c8}
   .mark.on{color:#fff}
@@ -1260,8 +1260,10 @@ toggle('mf-made','mmade');
 
 // カード上の 自前リスト トグル（お気に入り/気になる/つくった）。カードは<a>なので既定のリンク遷移を止める。
 grid.addEventListener('click',e=>{
-  const m=e.target.closest('.mark'); if(!m) return;
+  // マーク帯の中（ボタンの隙間含む）をタップしたら、カードは開かない＝誤爆防止
+  const zone=e.target.closest('.marks'); if(!zone) return;
   e.preventDefault(); e.stopPropagation();
+  const m=e.target.closest('.mark'); if(!m) return;   // 隙間タップは何もしない（遷移だけ止める）
   const r=m.dataset.r, k=m.dataset.mark;
   toggleMark(r,k);
   const on=getMark(r,k);
