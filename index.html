@@ -68,6 +68,16 @@
     font:inherit;font-size:13px;padding:9px 11px;border:1px solid var(--line);
     border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer;
   }
+  /* もっとクック（オプション）トグル：主機種セレクトの隣に置く追加チェック */
+  .mottochk{
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer;
+    font-size:13px;color:var(--ink);border:1px solid var(--line);background:var(--card);
+    border-radius:10px;padding:8px 11px;
+  }
+  .mottochk:has(input:checked){border-color:#3f51b5;background:#EEF1FB;color:#3f51b5;font-weight:600}
+  .mottochk input{accent-color:#3f51b5;width:16px;height:16px;margin:0}
+  .mottochk .cnt{color:var(--muted);font-size:12px}
+  .mottochk:has(input:checked) .cnt{color:#3f51b5}
   .chips{display:flex;gap:7px;flex-wrap:wrap}
   .chip{
     font:inherit;font-size:13px;font-weight:500;cursor:pointer;
@@ -154,6 +164,7 @@
   .pill.lim{background:#EDEAF6;color:#5a4b8a}
   .pill.cat{background:#EEF1F4;color:#42576b}
   .pill.main{background:#FBF0E4;color:#8a5a2a}
+  .pill.motto{background:#E7ECFA;color:#3f51b5;font-weight:600}
   /* 自前リスト（お気に入り/気になる/つくった）のトグル */
   .marks{display:flex;gap:6px;margin-left:auto;align-items:center;flex:none;padding:2px 0 2px 10px}
   .mark{
@@ -279,6 +290,8 @@
   .onb-body h2{font-size:18px;margin:0 0 8px}
   .onb-body p{font-size:13.5px;color:var(--muted);line-height:1.7;margin:0 0 16px}
   .onb-body select{width:100%;font-size:15px;padding:12px}
+  .onb-motto{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:14px;cursor:pointer}
+  .onb-motto input{accent-color:var(--red);width:18px;height:18px;flex:none}
   .onb-btns{display:flex;gap:10px;margin-top:18px}
   .onb-btns button{flex:1;font:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:13px;border-radius:11px;border:1px solid var(--line)}
   #onb-apply{background:var(--red);border-color:var(--red);color:#fff}
@@ -305,6 +318,9 @@
     <div class="filters" id="filters">
       <div class="controls">
         <select id="model" title="お使いの機種"><option value="">全機種</option></select>
+        <label class="mottochk" title="もっとクック（オプション）で作れるメニューも表示し、番号を追加します">
+          <input type="checkbox" id="f-motto"> ＋ もっとクック<span class="cnt" id="f-motto-cnt"></span>
+        </label>
         <select id="sort">
           <option value="no">番号順</option>
           <option value="timeAsc">調理時間 短い順</option>
@@ -377,6 +393,7 @@
     <h2 id="onb-title">お使いの機種を選んでください</h2>
     <p>機種を選ぶと、その機種で作れるメニューだけを表示し、メニュー番号もその機種の番号に合わせます。あとでヘッダーのバッジからいつでも変更できます。</p>
     <select id="onb-model"><option value="">機種を選ぶ…</option></select>
+    <label class="onb-motto"><input type="checkbox" id="onb-motto"> もっとクック（オプション）も使う</label>
     <div class="onb-btns">
       <button id="onb-apply" type="button">この機種にする</button>
       <button id="onb-skip" type="button">全機種のまま使う</button>
@@ -1134,16 +1151,21 @@ RECIPES.forEach(x=>{
   x.mains = o.mains || (NO_MAIN_CATS.has(x.cat) ? [] : mainsOf(x.name));
 });
 
-// 機種セレクタ用（番号の出せる機種だけ載せる。HW/SHはRコードから導出、MNは実番号を保持。旧HTは番号未取得なので載せない）
+// 機種セレクタ用（番号の出せる機種だけ載せる。HW/SHはRコードから導出。旧HTは番号未取得なので載せない）
+// もっとクック(MN16H)はオプション扱い（別トグル・OR追加）なのでこの主機種リストには入れない。
 const MODEL_GROUPS = [
   ["ホットクック（HW）", ["HW24H","HW16H","HW24G","HW16G","HW10G","HW24F","HW16F","HW24E","HW16E","HW10E","HW16D","HW24C"]],
-  ["もっとクック", ["MN16H"]],
   ["SH", ["SH10W","SH16W"]],
 ];
+const MOTTO_CODE = "MN16H";                 // もっとクック（本体に付ける“オプション”）
 const MODEL_KEY = "hotcook_model";
-const savedModel = (()=>{ try{ return localStorage.getItem(MODEL_KEY) || ""; }catch(e){ return ""; } })();
+const MOTTO_KEY = "hotcook_motto";
+let savedModel = (()=>{ try{ return localStorage.getItem(MODEL_KEY) || ""; }catch(e){ return ""; } })();
+let savedMotto = (()=>{ try{ return localStorage.getItem(MOTTO_KEY)==="1"; }catch(e){ return false; } })();
+// 旧仕様（もっとクックを主機種として選択）からの移行: オプションON＋主機種なしに読み替える
+if(savedModel===MOTTO_CODE){ savedModel=""; savedMotto=true; try{ localStorage.removeItem(MODEL_KEY); localStorage.setItem(MOTTO_KEY,"1"); }catch(e){} }
 
-const state = { q:"", sort:"no", size:"", cats:new Set(), main:"", model:savedModel,
+const state = { q:"", sort:"no", size:"", cats:new Set(), main:"", model:savedModel, motto:savedMotto,
   yoyaku:false, cloud:false, notcloud:false, group:true, view:"list", mfav:false, mwant:false, mmade:false };
 const grid = document.getElementById('grid');
 const empty = document.getElementById('empty');
@@ -1237,16 +1259,25 @@ function highlight(text, terms){
   return out + esc(text.slice(pos));
 }
 
-// 選択中の機種での表示番号。もっとクック等は実番号(nums)、HW/SHは導出済みの x.no。
+// もっとクックの番号（あれば）。無ければ null。
+function mottoNo(x){ return (x.nums && x.nums[MOTTO_CODE] != null) ? x.nums[MOTTO_CODE] : null; }
+// 主番号: 通常機種はRコードからのx.no。もっとクックのみ選択時は もっとクック番号を主に。
 function menuNo(x){
-  const m = state.model;
-  if(m && x.nums && x.nums[m] != null) return x.nums[m];
+  if(state.motto && !state.model){ const m = mottoNo(x); if(m != null) return m; }
   return x.no;
 }
-// 機種フィルタ: 選択機種に対応するレシピだけ通す（models 未取得の古い OP レコードは全機種表示のみ）
+// 有効な機種コード（主機種＋オプションのもっとクック）。空なら全機種扱い。
+function activeModels(){
+  const ms = [];
+  if(state.model) ms.push(state.model);
+  if(state.motto) ms.push(MOTTO_CODE);
+  return ms;
+}
+// 機種フィルタ: 有効な機種のどれかに対応するレシピを通す（OR）。models 未取得の古い OP は全機種のみ。
 function modelOK(x){
-  if(!state.model) return true;
-  return Array.isArray(x.models) && x.models.includes(state.model);
+  const ms = activeModels();
+  if(!ms.length) return true;
+  return Array.isArray(x.models) && ms.some(m => x.models.includes(m));
 }
 
 function card(x){
@@ -1266,6 +1297,8 @@ function card(x){
   if(x.yoyaku) pills.push(`<span class="pill yoyaku">予約OK</span>`);
   if(x.cloud) pills.push(`<span class="pill cloud">クラウド</span>`);
   if(x.r && getMark(x.r,"made")){ const t=madeAgoText(x.r); if(t) pills.push(`<span class="pill made">${esc(t)}</span>`); }
+  // もっとクックON時、通常番号に加えて もっとクック番号 を追加表示（主番号と重複しないときだけ）
+  if(state.motto){ const mn=mottoNo(x); if(mn!=null && String(mn)!==String(menuNo(x))) pills.push(`<span class="pill motto">もっと No.${esc(String(mn))}</span>`); }
   const dispNo = esc(String(menuNo(x)));   // 選択機種での番号
   const thumb = x.r
     ? `<img loading="lazy" referrerpolicy="no-referrer" src="${PHOTO(x.r)}" alt="${esc(x.name)}"
@@ -1360,7 +1393,7 @@ function render(){
   grid.appendChild(frag);
   empty.hidden = list.length>0;
   // 分母は「選んだ機種で作れる最大件数」（全機種なら総数）、分子は絞り込み後
-  const modelTotal = state.model ? RECIPES.filter(modelOK).length : RECIPES.length;
+  const modelTotal = (state.model||state.motto) ? RECIPES.filter(modelOK).length : RECIPES.length;
   countEl.textContent = `${list.length} / ${modelTotal} 件`;
   // 「絞り込み」ボタンに、有効なフィルタ数バッジを出す（折りたたみ中でも効き具合が分かる）
   const active = state.cats.size + [state.size,state.main].filter(Boolean).length
@@ -1375,8 +1408,11 @@ function render(){
 function updateModelBadge(){
   const b=document.getElementById('modelbadge');
   if(!b) return;
-  b.textContent = state.model ? `🍲 KN-${state.model} ▾` : `🍲 機種を選ぶ ▾`;
-  b.classList.toggle('unset', !state.model);
+  if(state.model && state.motto)      b.textContent = `🍲 KN-${state.model} ＋もっと ▾`;
+  else if(state.model)                b.textContent = `🍲 KN-${state.model} ▾`;
+  else if(state.motto)                b.textContent = `🍲 もっとクック ▾`;
+  else                                b.textContent = `🍲 機種を選ぶ ▾`;
+  b.classList.toggle('unset', !state.model && !state.motto);
 }
 
 // 系統・主材料のプルダウンを実データ（件数付き）で埋める
@@ -1444,6 +1480,10 @@ document.getElementById('cat-clear').addEventListener('click',()=>{
   // オンボーディング用セレクトにも同じ選択肢を複製
   const onb=document.getElementById('onb-model');
   if(onb) [...sel.children].forEach(node=>{ if(node.value!=="") onb.appendChild(node.cloneNode(true)); });
+  // もっとクック（オプション）: 件数ラベルと復元
+  const mc = counts.get(MOTTO_CODE) || 0;
+  const cnt = document.getElementById('f-motto-cnt'); if(cnt) cnt.textContent = `（${mc}）`;
+  document.getElementById('f-motto').checked = state.motto;
 })();
 
 // wire up
@@ -1459,6 +1499,11 @@ document.getElementById('model').addEventListener('change',e=>{
   state.model=e.target.value;
   try{ e.target.value ? localStorage.setItem(MODEL_KEY, e.target.value) : localStorage.removeItem(MODEL_KEY); }catch(err){}
   render();
+});
+// もっとクック（オプション）トグル: 主機種に“加えて”OR で表示。排他ではない。
+function saveMotto(){ try{ state.motto ? localStorage.setItem(MOTTO_KEY,"1") : localStorage.removeItem(MOTTO_KEY); }catch(e){} }
+document.getElementById('f-motto').addEventListener('change',e=>{
+  state.motto=e.target.checked; saveMotto(); render();
 });
 function toggle(id,key,exclusive){
   const btn=document.getElementById(id);
@@ -1530,6 +1575,7 @@ function buildSheet(x){
   if(x.lim) pills.push(`<span class="pill lim">${esc(x.lim)}限定</span>`);
   if(x.yoyaku) pills.push(`<span class="pill yoyaku">予約OK</span>`);
   if(x.cloud) pills.push(`<span class="pill cloud">クラウド</span>`);
+  if(state.motto){ const mn=mottoNo(x); if(mn!=null && String(mn)!==String(menuNo(x))) pills.push(`<span class="pill motto">もっと No.${esc(String(mn))}</span>`); }
   const photo = x.r
     ? `<img referrerpolicy="no-referrer" src="${PHOTO(x.r)}" alt="${esc(x.name)}"
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -1621,9 +1667,9 @@ document.getElementById('sheet-close').addEventListener('click', closeSheet);
 const ONBOARD_KEY = "hotcook_onboarded";
 const onboard = document.getElementById('onboard');
 function openOnboard(){
-  // 現在の機種を初期選択にする
-  const sel=document.getElementById('onb-model');
-  sel.value = state.model || "";
+  // 現在の機種・もっとクック設定を初期値にする
+  document.getElementById('onb-model').value = state.model || "";
+  document.getElementById('onb-motto').checked = state.motto;
   lastFocus = document.activeElement;
   overlay.hidden = false; onboard.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -1634,15 +1680,18 @@ function closeOnboard(){
   try{ localStorage.setItem(ONBOARD_KEY,"1"); }catch(e){}
   if(lastFocus && lastFocus.focus) lastFocus.focus();
 }
-function applyModel(v){
+function applyModel(v, motto){
   state.model = v;
+  state.motto = !!motto;
   const modelSel = document.getElementById('model');
-  if([...modelSel.options].some(o=>o.value===v)) modelSel.value=v;
+  modelSel.value = [...modelSel.options].some(o=>o.value===v) ? v : "";
+  const fm = document.getElementById('f-motto'); if(fm) fm.checked = state.motto;
   try{ v ? localStorage.setItem(MODEL_KEY, v) : localStorage.removeItem(MODEL_KEY); }catch(e){}
+  saveMotto();
   render();
 }
 document.getElementById('onb-apply').addEventListener('click',()=>{
-  applyModel(document.getElementById('onb-model').value);
+  applyModel(document.getElementById('onb-model').value, document.getElementById('onb-motto').checked);
   closeOnboard();
 });
 document.getElementById('onb-skip').addEventListener('click',()=>{ closeOnboard(); });
