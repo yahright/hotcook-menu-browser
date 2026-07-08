@@ -101,6 +101,25 @@
   .grid.list .pill{font-size:11px;padding:2px 7px}
   @media (min-width:760px){ .grid.list{grid-template-columns:1fr 1fr;gap:8px 16px} }
   @media (max-width:520px){ .grid.list .thumb{width:76px} }
+  /* 詳細リスト表示: リスト行に材料も出す。1画面の件数は減るが中身が分かる */
+  .grid.detail{grid-template-columns:1fr;gap:10px}
+  .grid.detail .card{flex-direction:row;align-items:stretch}
+  .grid.detail .thumb{width:120px;flex:none;aspect-ratio:auto}
+  .grid.detail .body{padding:11px 14px;gap:7px;justify-content:flex-start}
+  .grid.detail .num{top:5px;left:5px;font-size:12px;padding:2px 6px}
+  .grid.detail .name{font-size:16px;line-height:1.35}
+  .grid.detail .pill{font-size:11px;padding:2px 7px}
+  .grid.detail .ing{display:block}
+  @media (min-width:900px){ .grid.detail{grid-template-columns:1fr 1fr;gap:10px 16px} }
+  @media (max-width:520px){ .grid.detail .thumb{width:96px} }
+  /* 材料（詳細表示のみ表示） */
+  .ing{display:none;font-size:12.5px;line-height:1.65;color:#6b665d}
+  .ing b{color:#8a5a2a;font-weight:700;font-size:11px;margin-right:5px;letter-spacing:.02em}
+  .viewseg{display:inline-flex;gap:0}
+  .viewseg .chip{border-radius:0}
+  .viewseg .chip:first-child{border-radius:8px 0 0 8px}
+  .viewseg .chip:last-child{border-radius:0 8px 8px 0}
+  .viewseg .chip + .chip{border-left:none}
   .card{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;
@@ -138,8 +157,8 @@
   /* 自前リスト（お気に入り/気になる/つくった）のトグル */
   .marks{display:flex;gap:6px;margin-left:auto;align-items:center;flex:none;padding:2px 0 2px 10px}
   .mark{
-    cursor:pointer;user-select:none;min-width:36px;height:36px;line-height:34px;text-align:center;
-    border:1px solid var(--line);border-radius:9px;font-size:17px;color:#c4bfb6;background:var(--card);
+    cursor:pointer;user-select:none;min-width:31px;height:31px;line-height:29px;text-align:center;
+    border:1px solid var(--line);border-radius:8px;font-size:15px;color:#c4bfb6;background:var(--card);
   }
   .mark:hover{border-color:#d8d2c8}
   .mark.on{color:#fff}
@@ -226,7 +245,11 @@
           <button class="chip mk" id="mf-fav"  data-mk="fav"  aria-pressed="false">♥ お気に入り</button>
           <button class="chip mk" id="mf-want" data-mk="want" aria-pressed="false">★ 気になる</button>
           <button class="chip mk" id="mf-made" data-mk="made" aria-pressed="false">✓ つくった</button>
-          <button class="chip" id="f-list" aria-pressed="true">リスト表示</button>
+          <span class="viewseg">
+            <button class="chip vw" id="v-grid"   data-view="grid"   aria-pressed="false">▦ グリッド</button>
+            <button class="chip vw" id="v-list"   data-view="list"   aria-pressed="true">≣ リスト</button>
+            <button class="chip vw" id="v-detail" data-view="detail" aria-pressed="false">☰ 詳細（材料つき）</button>
+          </span>
           <button class="chip" id="f-group" aria-pressed="true">系統ごとに見出し</button>
           <button class="chip" id="f-yoyaku" aria-pressed="false">予約できる</button>
           <button class="chip red" id="f-cloud" aria-pressed="false">クラウド限定</button>
@@ -1010,7 +1033,7 @@ const MODEL_KEY = "hotcook_model";
 const savedModel = (()=>{ try{ return localStorage.getItem(MODEL_KEY) || ""; }catch(e){ return ""; } })();
 
 const state = { q:"", sort:"no", size:"", cats:new Set(), main:"", model:savedModel,
-  yoyaku:false, cloud:false, notcloud:false, group:true, list:true, mfav:false, mwant:false, mmade:false };
+  yoyaku:false, cloud:false, notcloud:false, group:true, view:"list", mfav:false, mwant:false, mmade:false };
 const grid = document.getElementById('grid');
 const empty = document.getElementById('empty');
 const countEl = document.getElementById('count');
@@ -1035,7 +1058,7 @@ function saveState(){
   if(hydrating) return;
   try{ localStorage.setItem(STATE_KEY, JSON.stringify({
     q:state.q, sort:state.sort, size:state.size, cats:[...state.cats], main:state.main,
-    yoyaku:state.yoyaku, cloud:state.cloud, notcloud:state.notcloud, group:state.group, list:state.list,
+    yoyaku:state.yoyaku, cloud:state.cloud, notcloud:state.notcloud, group:state.group, view:state.view,
     mfav:state.mfav, mwant:state.mwant, mmade:state.mmade,
     y: window.scrollY
   })); }catch(e){}
@@ -1087,6 +1110,7 @@ function card(x){
     </div>
     <div class="body">
       <span class="name">${esc(x.name)}</span>
+      ${(x.ing&&x.ing.length)?`<div class="ing"><b>材料</b>${x.ing.map(i=>esc(i)).join('・')}</div>`:''}
       <div class="meta">${pills.join('')}${marksHtml}</div>
     </div>`;
   return el;
@@ -1135,7 +1159,9 @@ function render(){
   });
   sortList(list);
 
-  grid.classList.toggle('list', state.list);
+  grid.classList.remove('list','detail');
+  if(state.view==='list') grid.classList.add('list');
+  else if(state.view==='detail') grid.classList.add('detail');
   grid.innerHTML = "";
   const frag = document.createDocumentFragment();
   if(state.group){
@@ -1249,7 +1275,13 @@ function toggle(id,key,exclusive){
     render();
   });
 }
-toggle('f-list','list');
+// 表示モード（グリッド/リスト/詳細）は排他。押されたものだけ pressed に。
+function setView(v){
+  state.view=v;
+  document.querySelectorAll('.vw').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===v)));
+  render();
+}
+document.querySelectorAll('.vw').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 toggle('f-yoyaku','yoyaku');
 toggle('f-cloud','cloud','notcloud');
 toggle('f-notcloud','notcloud','cloud');
@@ -1305,7 +1337,10 @@ document.getElementById('precache').addEventListener('click', function(){
 // 保存済みの絞り込み状態を復元（コントロールにも反映）してから描画する。
 if(savedState){
   ["q","sort","size","main"].forEach(k=>{ if(savedState[k]!=null) state[k]=savedState[k]; });
-  ["yoyaku","cloud","notcloud","group","list","mfav","mwant","mmade"].forEach(k=>{ if(typeof savedState[k]==="boolean") state[k]=savedState[k]; });
+  ["yoyaku","cloud","notcloud","group","mfav","mwant","mmade"].forEach(k=>{ if(typeof savedState[k]==="boolean") state[k]=savedState[k]; });
+  // 表示モード復元。旧形式（list:true/false）からも移行する。
+  if(["grid","list","detail"].includes(savedState.view)) state.view=savedState.view;
+  else if(typeof savedState.list==="boolean") state.view = savedState.list ? "list" : "grid";
   if(Array.isArray(savedState.cats)) state.cats = new Set(savedState.cats);
   else if(typeof savedState.cat==="string" && savedState.cat) state.cats = new Set([savedState.cat]);   // 旧形式との互換
   document.getElementById('q').value = state.q;
@@ -1315,9 +1350,10 @@ if(savedState){
   });
   document.querySelectorAll('#catchips .chip[data-cat]').forEach(b=>b.setAttribute('aria-pressed', String(state.cats.has(b.dataset.cat))));
   syncCatClear();
-  [["f-list","list"],["f-group","group"],["f-yoyaku","yoyaku"],["f-cloud","cloud"],["f-notcloud","notcloud"],
+  [["f-group","group"],["f-yoyaku","yoyaku"],["f-cloud","cloud"],["f-notcloud","notcloud"],
    ["mf-fav","mfav"],["mf-want","mwant"],["mf-made","mmade"]]
     .forEach(([id,k])=>document.getElementById(id).setAttribute("aria-pressed", String(state[k])));
+  document.querySelectorAll('.vw').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===state.view)));
 }
 
 render();
