@@ -135,6 +135,24 @@
   .pill.lim{background:#EDEAF6;color:#5a4b8a}
   .pill.cat{background:#EEF1F4;color:#42576b}
   .pill.main{background:#FBF0E4;color:#8a5a2a}
+  /* 自前リスト（お気に入り/気になる/つくった）のトグル */
+  .marks{display:flex;gap:4px;margin-left:auto;align-items:center;flex:none}
+  .mark{
+    cursor:pointer;user-select:none;min-width:27px;height:27px;line-height:25px;text-align:center;
+    border:1px solid var(--line);border-radius:8px;font-size:14px;color:#c4bfb6;background:var(--card);
+  }
+  .mark:hover{border-color:#d8d2c8}
+  .mark.on{color:#fff}
+  .mark.on[data-mark="fav"]{background:var(--red);border-color:var(--red)}
+  .mark.on[data-mark="want"]{background:#d99a1c;border-color:#d99a1c}
+  .mark.on[data-mark="made"]{background:#2f8f4e;border-color:#2f8f4e}
+  .chip.mk[aria-pressed="true"][data-mk="fav"]{background:var(--red);border-color:var(--red)}
+  .chip.mk[aria-pressed="true"][data-mk="want"]{background:#d99a1c;border-color:#d99a1c}
+  .chip.mk[aria-pressed="true"][data-mk="made"]{background:#2f8f4e;border-color:#2f8f4e}
+  /* プリキャッシュ */
+  .dlbtn{font:inherit;font-size:12px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 12px;border-radius:8px}
+  .dlbtn:disabled{opacity:.6;cursor:default}
+  .dlprog{font-size:12px;color:var(--muted);margin-left:8px}
 
   /* 系統ごとの見出し（グループ表示時）: 赤アクセントの帯でハッキリ区切る */
   .group{
@@ -205,6 +223,9 @@
       </div>
       <div class="controls">
         <div class="chips">
+          <button class="chip mk" id="mf-fav"  data-mk="fav"  aria-pressed="false">♥ お気に入り</button>
+          <button class="chip mk" id="mf-want" data-mk="want" aria-pressed="false">★ 気になる</button>
+          <button class="chip mk" id="mf-made" data-mk="made" aria-pressed="false">✓ つくった</button>
           <button class="chip" id="f-list" aria-pressed="true">リスト表示</button>
           <button class="chip" id="f-group" aria-pressed="true">系統ごとに見出し</button>
           <button class="chip" id="f-yoyaku" aria-pressed="false">予約できる</button>
@@ -222,6 +243,10 @@
 </main>
 
 <footer>
+  <div style="margin-bottom:10px">
+    <button class="dlbtn" id="precache" type="button">全画像を端末に保存（オフライン用）</button>
+    <span class="dlprog" id="dlprog"></span>
+  </div>
   メニュー情報・写真は <a href="https://cocoroplus.jp.sharp/kitchen/recipe/" target="_blank" rel="noopener">SHARP COCORO KITCHEN</a> より。個人利用の非公式ツールです。
 </footer>
 
@@ -984,10 +1009,24 @@ const MODEL_GROUPS = [
 const MODEL_KEY = "hotcook_model";
 const savedModel = (()=>{ try{ return localStorage.getItem(MODEL_KEY) || ""; }catch(e){ return ""; } })();
 
-const state = { q:"", sort:"no", size:"", cats:new Set(), main:"", model:savedModel, yoyaku:false, cloud:false, notcloud:false, group:true, list:true };
+const state = { q:"", sort:"no", size:"", cats:new Set(), main:"", model:savedModel,
+  yoyaku:false, cloud:false, notcloud:false, group:true, list:true, mfav:false, mwant:false, mmade:false };
 const grid = document.getElementById('grid');
 const empty = document.getElementById('empty');
 const countEl = document.getElementById('count');
+
+// 自前の3リスト（お気に入り/気になる/つくった）。Rコードごとに端末(localStorage)へ保存。
+const MARKS_KEY = "hotcook_marks";
+const marks = (()=>{ try{ return JSON.parse(localStorage.getItem(MARKS_KEY)||"{}"); }catch(e){ return {}; } })();
+function saveMarks(){ try{ localStorage.setItem(MARKS_KEY, JSON.stringify(marks)); }catch(e){} }
+function getMark(r,k){ return !!(marks[r] && marks[r][k]); }
+function toggleMark(r,k){
+  if(!marks[r]) marks[r]={};
+  if(marks[r][k]) delete marks[r][k]; else marks[r][k]=1;
+  if(Object.keys(marks[r]).length===0) delete marks[r];
+  saveMarks();
+}
+const MARK_GLYPH = { fav:"♥", want:"★", made:"✓" };
 
 // 絞り込み・並び・表示・スクロール位置を localStorage に保存し、レシピを開いて戻っても復元する。
 const STATE_KEY = "hotcook_state";
@@ -997,6 +1036,7 @@ function saveState(){
   try{ localStorage.setItem(STATE_KEY, JSON.stringify({
     q:state.q, sort:state.sort, size:state.size, cats:[...state.cats], main:state.main,
     yoyaku:state.yoyaku, cloud:state.cloud, notcloud:state.notcloud, group:state.group, list:state.list,
+    mfav:state.mfav, mwant:state.mwant, mmade:state.mmade,
     y: window.scrollY
   })); }catch(e){}
 }
@@ -1037,13 +1077,17 @@ function card(x){
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
        <div class="fallback"><strong>No.${dispNo}</strong><span>${esc(x.name)}</span></div>`
     : `<div class="fallback" style="display:flex"><strong>No.${dispNo}</strong><span>${esc(x.name)}</span></div>`;
+  // 自前リストのトグル（カードは<a>なので span+role=button。クリックはgridで preventDefault）
+  const marksHtml = x.r ? `<span class="marks">` + ["fav","want","made"].map(k=>
+    `<span class="mark${getMark(x.r,k)?' on':''}" role="button" tabindex="0" data-mark="${k}" data-r="${x.r}" aria-pressed="${getMark(x.r,k)}" title="${k==='fav'?'お気に入り':k==='want'?'気になる':'つくった'}">${MARK_GLYPH[k]}</span>`
+  ).join('') + `</span>` : "";
   el.innerHTML = `
     <div class="thumb">
       ${thumb}
     </div>
     <div class="body">
       <span class="name">${esc(x.name)}</span>
-      <div class="meta">${pills.join('')}</div>
+      <div class="meta">${pills.join('')}${marksHtml}</div>
     </div>`;
   return el;
 }
@@ -1071,6 +1115,9 @@ function sortList(list){
 function render(){
   let list = RECIPES.filter(x=>{
     if(!modelOK(x)) return false;
+    if(state.mfav  && !getMark(x.r,"fav"))  return false;
+    if(state.mwant && !getMark(x.r,"want")) return false;
+    if(state.mmade && !getMark(x.r,"made")) return false;
     if(state.size && !(x.size||"").split('/').includes(state.size) && x.size!=="全") return false;
     if(state.cats.size && !state.cats.has(x.cat)) return false;
     if(state.main && !(x.mains||[]).includes(state.main)) return false;
@@ -1104,10 +1151,12 @@ function render(){
   }
   grid.appendChild(frag);
   empty.hidden = list.length>0;
-  countEl.textContent = `${list.length} / ${RECIPES.length} 件`;
+  // 分母は「選んだ機種で作れる最大件数」（全機種なら総数）、分子は絞り込み後
+  const modelTotal = state.model ? RECIPES.filter(modelOK).length : RECIPES.length;
+  countEl.textContent = `${list.length} / ${modelTotal} 件`;
   // 「絞り込み」ボタンに、有効なフィルタ数バッジを出す（折りたたみ中でも効き具合が分かる）
   const active = state.cats.size + [state.size,state.main].filter(Boolean).length
-    + [state.yoyaku,state.cloud,state.notcloud].filter(Boolean).length;
+    + [state.yoyaku,state.cloud,state.notcloud,state.mfav,state.mwant,state.mmade].filter(Boolean).length;
   const badge = document.getElementById('fbadge');
   if(active){ badge.textContent = active; badge.hidden = false; } else { badge.hidden = true; }
   saveState();
@@ -1205,6 +1254,20 @@ toggle('f-yoyaku','yoyaku');
 toggle('f-cloud','cloud','notcloud');
 toggle('f-notcloud','notcloud','cloud');
 toggle('f-group','group');
+toggle('mf-fav','mfav');
+toggle('mf-want','mwant');
+toggle('mf-made','mmade');
+
+// カード上の 自前リスト トグル（お気に入り/気になる/つくった）。カードは<a>なので既定のリンク遷移を止める。
+grid.addEventListener('click',e=>{
+  const m=e.target.closest('.mark'); if(!m) return;
+  e.preventDefault(); e.stopPropagation();
+  const r=m.dataset.r, k=m.dataset.mark;
+  toggleMark(r,k);
+  const on=getMark(r,k);
+  m.classList.toggle('on',on); m.setAttribute('aria-pressed',String(on));
+  if(state.mfav||state.mwant||state.mmade) render();   // マイリスト表示中なら消える/現れる
+});
 
 // モバイル: 「絞り込み」で プルダウン/チップ を開閉
 document.getElementById('f-toggle').addEventListener('click',function(){
@@ -1212,10 +1275,35 @@ document.getElementById('f-toggle').addEventListener('click',function(){
   this.setAttribute('aria-expanded', String(open));
 });
 
+// 明示プリキャッシュ: 全レシピ画像を端末キャッシュ(hotcook-photos)へ。オフライン閲覧用。
+async function precacheAll(btn, prog){
+  btn.disabled = true;
+  let cache;
+  try{ cache = await caches.open('hotcook-photos'); }
+  catch(e){ prog.textContent = 'この環境ではキャッシュを使えません'; btn.disabled=false; return; }
+  const urls = [...new Set(RECIPES.filter(x=>x.r).map(x=>PHOTO(x.r)))];
+  const N = urls.length; let done=0, ok=0, i=0;
+  prog.textContent = `0 / ${N} …`;
+  async function worker(){
+    while(i < urls.length){
+      const u = urls[i++];
+      try{ const res = await fetch(u, {mode:'no-cors', referrerPolicy:'no-referrer'}); await cache.put(u, res); ok++; }
+      catch(e){}
+      done++; if(done%5===0 || done===N) prog.textContent = `${done} / ${N} …`;
+    }
+  }
+  await Promise.all(Array.from({length:8}, worker));
+  prog.textContent = `完了: ${ok} / ${N} 枚を端末に保存${ok<N?'（端末の空き容量により一部保存されない場合があります）':''}`;
+  btn.disabled = false;
+}
+document.getElementById('precache').addEventListener('click', function(){
+  precacheAll(this, document.getElementById('dlprog'));
+});
+
 // 保存済みの絞り込み状態を復元（コントロールにも反映）してから描画する。
 if(savedState){
   ["q","sort","size","main"].forEach(k=>{ if(savedState[k]!=null) state[k]=savedState[k]; });
-  ["yoyaku","cloud","notcloud","group","list"].forEach(k=>{ if(typeof savedState[k]==="boolean") state[k]=savedState[k]; });
+  ["yoyaku","cloud","notcloud","group","list","mfav","mwant","mmade"].forEach(k=>{ if(typeof savedState[k]==="boolean") state[k]=savedState[k]; });
   if(Array.isArray(savedState.cats)) state.cats = new Set(savedState.cats);
   else if(typeof savedState.cat==="string" && savedState.cat) state.cats = new Set([savedState.cat]);   // 旧形式との互換
   document.getElementById('q').value = state.q;
@@ -1225,7 +1313,8 @@ if(savedState){
   });
   document.querySelectorAll('#catchips .chip[data-cat]').forEach(b=>b.setAttribute('aria-pressed', String(state.cats.has(b.dataset.cat))));
   syncCatClear();
-  [["f-list","list"],["f-group","group"],["f-yoyaku","yoyaku"],["f-cloud","cloud"],["f-notcloud","notcloud"]]
+  [["f-list","list"],["f-group","group"],["f-yoyaku","yoyaku"],["f-cloud","cloud"],["f-notcloud","notcloud"],
+   ["mf-fav","mfav"],["mf-want","mwant"],["mf-made","mmade"]]
     .forEach(([id,k])=>document.getElementById(id).setAttribute("aria-pressed", String(state[k])));
 }
 
