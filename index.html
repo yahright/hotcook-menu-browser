@@ -200,6 +200,70 @@
     .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* 検索ヒットのハイライト */
+  mark{background:#FFE7A3;color:inherit;border-radius:3px;padding:0 1px}
+  .pill.made{background:#EAF5EC;color:#2f8f4e}
+
+  /* ヘッダーの機種バッジ（いつでも変更できると分かるように常設） */
+  .modelbadge{
+    font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:4px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;
+  }
+  .modelbadge:hover{border-color:var(--red);color:var(--red)}
+  .modelbadge.unset{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+
+  /* モーダル（詳細シート／機種オンボーディング共通の下地） */
+  .overlay{position:fixed;inset:0;z-index:40;background:rgba(30,25,20,.5);backdrop-filter:blur(2px)}
+  .overlay[hidden]{display:none}
+  .modal{
+    position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(560px,calc(100vw - 28px));max-height:calc(100dvh - 40px);
+    background:var(--card);border-radius:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .modal[hidden]{display:none}
+  .modal-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .modal-close{
+    position:absolute;top:10px;right:10px;z-index:2;width:34px;height:34px;line-height:32px;
+    text-align:center;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.9);
+    color:var(--ink);font-size:16px;cursor:pointer;
+  }
+  /* スマホは下から出るボトムシート */
+  @media (max-width:640px){
+    .modal{
+      left:0;top:auto;bottom:0;transform:none;width:100%;max-height:88dvh;
+      border-radius:16px 16px 0 0;
+    }
+  }
+  /* 詳細シートの中身 */
+  .dphoto{position:relative;width:100%;aspect-ratio:4/3;background:#EFEBE3;overflow:hidden}
+  .dphoto img{width:100%;height:100%;object-fit:cover;display:block}
+  .dphoto .fallback{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:repeating-linear-gradient(135deg,#F0ECE4,#F0ECE4 10px,#ECE7DE 10px,#ECE7DE 20px);color:var(--muted)}
+  .dphoto .num{top:12px;left:12px;font-size:15px}
+  .dbody{padding:16px 18px 22px}
+  .dname{font-size:20px;font-weight:700;line-height:1.35;margin:0 0 10px}
+  .dmeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .dmarks{display:flex;gap:8px;margin-bottom:16px}
+  .dmarks .mark{flex:1;min-width:0;height:42px;line-height:1;padding:0 8px;font-size:13px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+  .dmade{font-size:12.5px;color:#2f8f4e;margin:-8px 0 14px;font-weight:600}
+  .ding h3{font-size:13px;color:var(--muted);margin:0 0 8px;font-weight:700;letter-spacing:.04em}
+  .ding ul{margin:0 0 18px;padding-left:1.1em;line-height:1.85;font-size:14.5px}
+  .dlink{
+    display:block;text-align:center;text-decoration:none;font-weight:600;font-size:14px;
+    background:var(--red);color:#fff;padding:13px;border-radius:11px;
+  }
+  .dlink:hover{opacity:.92}
+  /* オンボーディング */
+  .onb-body{padding:22px 22px 20px}
+  .onb-body h2{font-size:18px;margin:0 0 8px}
+  .onb-body p{font-size:13.5px;color:var(--muted);line-height:1.7;margin:0 0 16px}
+  .onb-body select{width:100%;font-size:15px;padding:12px}
+  .onb-btns{display:flex;gap:10px;margin-top:18px}
+  .onb-btns button{flex:1;font:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:13px;border-radius:11px;border:1px solid var(--line)}
+  #onb-apply{background:var(--red);border-color:var(--red);color:#fff}
+  #onb-skip{background:var(--card);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -208,6 +272,7 @@
     <div class="titlerow">
       <h1>ホット<span class="k">クック</span> メニューブラウザ</h1>
       <span class="count" id="count"></span>
+      <button class="modelbadge" id="modelbadge" type="button" title="機種を選ぶ・変更する"></button>
     </div>
     <div class="searchrow">
       <label class="search">
@@ -226,6 +291,7 @@
           <option value="timeAsc">調理時間 短い順</option>
           <option value="timeDesc">調理時間 長い順</option>
           <option value="nameJa">名前順</option>
+          <option value="madeDesc">つくった順（新しい順）</option>
         </select>
         <select id="size">
           <option value="">全サイズ</option>
@@ -270,8 +336,34 @@
     <button class="dlbtn" id="precache" type="button">全画像を端末に保存（オフライン用）</button>
     <span class="dlprog" id="dlprog"></span>
   </div>
+  <div style="margin-bottom:10px">
+    <button class="dlbtn" id="export-marks" type="button">マーク（♥★✓）を書き出す</button>
+    <button class="dlbtn" id="import-marks" type="button">マークを読み込む</button>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
+    <span class="dlprog" id="markprog"></span>
+  </div>
   メニュー情報・写真は <a href="https://cocoroplus.jp.sharp/kitchen/recipe/" target="_blank" rel="noopener">SHARP COCORO KITCHEN</a> より。個人利用の非公式ツールです。
 </footer>
+
+<!-- 詳細シート（カードタップでアプリ内表示。オフラインでも材料まで見られる） -->
+<div class="overlay" id="overlay" hidden></div>
+<div class="modal" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+  <button class="modal-close" id="sheet-close" type="button" aria-label="閉じる">✕</button>
+  <div class="modal-scroll" id="sheet-body"></div>
+</div>
+
+<!-- 機種オンボーディング（初回のみ自動表示。バッジからいつでも再表示） -->
+<div class="modal" id="onboard" hidden role="dialog" aria-modal="true" aria-labelledby="onb-title">
+  <div class="onb-body">
+    <h2 id="onb-title">お使いの機種を選んでください</h2>
+    <p>機種を選ぶと、その機種で作れるメニューだけを表示し、メニュー番号もその機種の番号に合わせます。あとでヘッダーのバッジからいつでも変更できます。</p>
+    <select id="onb-model"><option value="">機種を選ぶ…</option></select>
+    <div class="onb-btns">
+      <button id="onb-apply" type="button">この機種にする</button>
+      <button id="onb-skip" type="button">全機種のまま使う</button>
+    </div>
+  </div>
+</div>
 
 <script id="recipe-data" type="application/json">
 [
@@ -1045,11 +1137,42 @@ function saveMarks(){ try{ localStorage.setItem(MARKS_KEY, JSON.stringify(marks)
 function getMark(r,k){ return !!(marks[r] && marks[r][k]); }
 function toggleMark(r,k){
   if(!marks[r]) marks[r]={};
-  if(marks[r][k]) delete marks[r][k]; else marks[r][k]=1;
+  // 「つくった」はいつ作ったかを残す（タイムスタンプ）。他はフラグのまま。
+  if(marks[r][k]) delete marks[r][k]; else marks[r][k] = (k==="made") ? Date.now() : 1;
   if(Object.keys(marks[r]).length===0) delete marks[r];
   saveMarks();
 }
 const MARK_GLYPH = { fav:"♥", want:"★", made:"✓" };
+const MARK_LABEL = { fav:"お気に入り", want:"気になる", made:"つくった" };
+
+// 「つくった」のタイムスタンプ（旧データの made:1 は 0 扱い＝日付なし）
+function madeTime(r){ const v=marks[r]&&marks[r].made; return (typeof v==="number"&&v>1)?v:0; }
+function madeAgoText(r){
+  if(!getMark(r,"made")) return "";
+  const t=madeTime(r);
+  if(!t) return "つくった";
+  const days=Math.floor((Date.now()-t)/86400000);
+  if(days<=0) return "今日つくった";
+  if(days===1) return "昨日つくった";
+  if(days<7)   return `${days}日前につくった`;
+  if(days<30)  return `${Math.floor(days/7)}週間前につくった`;
+  if(days<365) return `${Math.floor(days/30)}か月前につくった`;
+  return `${Math.floor(days/365)}年前につくった`;
+}
+
+// 全ての .mark 要素（カード＋シート）の on/off を現在値に合わせる
+function refreshMarkEls(r,k){
+  const on=getMark(r,k);
+  document.querySelectorAll(`.mark[data-r="${r}"][data-mark="${k}"]`).forEach(el=>{
+    el.classList.toggle('on',on); el.setAttribute('aria-pressed',String(on));
+  });
+}
+// マーク操作の共通処理（カードでもシートでも同じ挙動に）
+function doToggleMark(r,k){
+  toggleMark(r,k);
+  refreshMarkEls(r,k);
+  if(state.mfav||state.mwant||state.mmade) render();   // マイリスト絞り込み中なら増減を反映
+}
 
 // 絞り込み・並び・表示・スクロール位置を localStorage に保存し、レシピを開いて戻っても復元する。
 const STATE_KEY = "hotcook_state";
@@ -1066,6 +1189,34 @@ function saveState(){
 const savedState = (()=>{ try{ return JSON.parse(localStorage.getItem(STATE_KEY)||"null"); }catch(e){ return null; } })();
 
 function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+// Rコード → レシピ の逆引き（詳細シート用）
+const byR = new Map(RECIPES.filter(x=>x.r).map(x=>[x.r,x]));
+
+// 検索語（AND用に分割・小文字化）。render() の先頭で更新する。
+let SEARCH_TERMS = [];
+// 生テキストを esc しつつ、検索語に一致した箇所を <mark> で囲む
+function highlight(text, terms){
+  if(!terms || !terms.length) return esc(text);
+  const lower = String(text).toLowerCase();
+  const ranges = [];
+  for(const t of terms){
+    if(!t) continue;
+    let i=0;
+    while((i = lower.indexOf(t, i)) !== -1){ ranges.push([i, i+t.length]); i += t.length; }
+  }
+  if(!ranges.length) return esc(text);
+  ranges.sort((a,b)=>a[0]-b[0]);
+  const merged=[];
+  for(const r of ranges){
+    const last=merged[merged.length-1];
+    if(last && r[0]<=last[1]) last[1]=Math.max(last[1],r[1]);
+    else merged.push(r.slice());
+  }
+  let out="", pos=0;
+  for(const [s,e] of merged){ out += esc(text.slice(pos,s)) + "<mark>" + esc(text.slice(s,e)) + "</mark>"; pos=e; }
+  return out + esc(text.slice(pos));
+}
 
 // 選択中の機種での表示番号。もっとクック等は実番号(nums)、HW/SHは導出済みの x.no。
 function menuNo(x){
@@ -1085,6 +1236,7 @@ function card(x){
   const href = x.r ? LINK(x.r) : (x.url || "");
   const el = document.createElement(href ? 'a' : 'div');
   el.className = 'card';
+  if(x.r) el.dataset.r = x.r;
   if(href){ el.href = href; el.target = '_blank'; el.rel = 'noopener'; }
   const pills = [];
   if(x.cat) pills.push(`<span class="pill cat">${esc(x.cat)}</span>`);
@@ -1094,6 +1246,7 @@ function card(x){
   if(x.lim) pills.push(`<span class="pill lim">${esc(x.lim)}限定</span>`);
   if(x.yoyaku) pills.push(`<span class="pill yoyaku">予約OK</span>`);
   if(x.cloud) pills.push(`<span class="pill cloud">クラウド</span>`);
+  if(x.r && getMark(x.r,"made")){ const t=madeAgoText(x.r); if(t) pills.push(`<span class="pill made">${esc(t)}</span>`); }
   const dispNo = esc(String(menuNo(x)));   // 選択機種での番号
   const thumb = x.r
     ? `<img loading="lazy" referrerpolicy="no-referrer" src="${PHOTO(x.r)}" alt="${esc(x.name)}"
@@ -1102,15 +1255,15 @@ function card(x){
     : `<div class="fallback" style="display:flex"><strong>No.${dispNo}</strong><span>${esc(x.name)}</span></div>`;
   // 自前リストのトグル（カードは<a>なので span+role=button。クリックはgridで preventDefault）
   const marksHtml = x.r ? `<span class="marks">` + ["fav","want","made"].map(k=>
-    `<span class="mark${getMark(x.r,k)?' on':''}" role="button" tabindex="0" data-mark="${k}" data-r="${x.r}" aria-pressed="${getMark(x.r,k)}" title="${k==='fav'?'お気に入り':k==='want'?'気になる':'つくった'}">${MARK_GLYPH[k]}</span>`
+    `<span class="mark${getMark(x.r,k)?' on':''}" role="button" tabindex="0" data-mark="${k}" data-r="${x.r}" aria-pressed="${getMark(x.r,k)}" title="${MARK_LABEL[k]}">${MARK_GLYPH[k]}</span>`
   ).join('') + `</span>` : "";
   el.innerHTML = `
     <div class="thumb">
       ${thumb}
     </div>
     <div class="body">
-      <span class="name">${esc(x.name)}</span>
-      ${(x.ing&&x.ing.length)?`<div class="ing"><b>材料</b>${x.ing.map(i=>esc(i)).join('・')}</div>`:''}
+      <span class="name">${highlight(x.name, SEARCH_TERMS)}</span>
+      ${(x.ing&&x.ing.length)?`<div class="ing"><b>材料</b>${x.ing.map(i=>highlight(i, SEARCH_TERMS)).join('・')}</div>`:''}
       <div class="meta">${pills.join('')}${marksHtml}</div>
     </div>`;
   return el;
@@ -1130,6 +1283,11 @@ function sortList(list){
     if(state.sort==="timeAsc")  return (a.min??big)-(b.min??big);
     if(state.sort==="timeDesc") return (b.min??-1)-(a.min??-1);
     if(state.sort==="nameJa")   return collator.compare(a.name,b.name);
+    if(state.sort==="madeDesc"){   // つくった順（日付の新しい順）。未記録は末尾。
+      const d = madeTime(b.r)-madeTime(a.r);
+      if(d) return d;
+      return collator.compare(a.name,b.name);
+    }
     const na=parseInt(menuNo(a),10), nb=parseInt(menuNo(b),10);   // 番号順は選択機種の番号で
     if(isNaN(na)||isNaN(nb)) return collator.compare(String(menuNo(a)),String(menuNo(b)));
     return na-nb;
@@ -1137,6 +1295,8 @@ function sortList(list){
 }
 
 function render(){
+  // 検索語を空白（半角/全角）で分割 → 全語を含むもの（AND）だけ通す
+  SEARCH_TERMS = state.q ? state.q.toLowerCase().split(/[\s　]+/).filter(Boolean) : [];
   let list = RECIPES.filter(x=>{
     if(!modelOK(x)) return false;
     if(state.mfav  && !getMark(x.r,"fav"))  return false;
@@ -1148,12 +1308,15 @@ function render(){
     if(state.yoyaku && !x.yoyaku) return false;
     if(state.cloud && !x.cloud) return false;
     if(state.notcloud && x.cloud) return false;
-    if(state.q){
-      const q = state.q.toLowerCase();
-      const inName = x.name.toLowerCase().includes(q);
-      const inNo = String(menuNo(x)).includes(q) || String(x.no).includes(q);
-      const inIng = (x.ing||[]).some(i=>i.toLowerCase().includes(q));
-      if(!(inName || inNo || inIng)) return false;
+    if(SEARCH_TERMS.length){
+      const name = x.name.toLowerCase();
+      const no1 = String(menuNo(x)), no2 = String(x.no);
+      const ings = (x.ing||[]).map(i=>i.toLowerCase());
+      // 各語が 名前 / 番号 / 材料 のいずれかに含まれること（語どうしは AND）
+      const ok = SEARCH_TERMS.every(t=>
+        name.includes(t) || no1.includes(t) || no2.includes(t) || ings.some(i=>i.includes(t))
+      );
+      if(!ok) return false;
     }
     return true;
   });
@@ -1185,7 +1348,16 @@ function render(){
     + [state.yoyaku,state.cloud,state.notcloud,state.mfav,state.mwant,state.mmade].filter(Boolean).length;
   const badge = document.getElementById('fbadge');
   if(active){ badge.textContent = active; badge.hidden = false; } else { badge.hidden = true; }
+  updateModelBadge();
   saveState();
+}
+
+// ヘッダーの機種バッジ表示を現在の機種に合わせる
+function updateModelBadge(){
+  const b=document.getElementById('modelbadge');
+  if(!b) return;
+  b.textContent = state.model ? `🍲 KN-${state.model} ▾` : `🍲 機種を選ぶ ▾`;
+  b.classList.toggle('unset', !state.model);
 }
 
 // 系統・主材料のプルダウンを実データ（件数付き）で埋める
@@ -1250,6 +1422,9 @@ document.getElementById('cat-clear').addEventListener('click',()=>{
   // 保存済みの機種があり、かつ選択肢に存在すれば復元
   if(savedModel && [...sel.options].some(o=>o.value===savedModel)) sel.value=savedModel;
   else state.model="";
+  // オンボーディング用セレクトにも同じ選択肢を複製
+  const onb=document.getElementById('onb-model');
+  if(onb) [...sel.children].forEach(node=>{ if(node.value!=="") onb.appendChild(node.cloneNode(true)); });
 })();
 
 // wire up
@@ -1290,17 +1465,177 @@ toggle('mf-fav','mfav');
 toggle('mf-want','mwant');
 toggle('mf-made','mmade');
 
-// カード上の 自前リスト トグル（お気に入り/気になる/つくった）。カードは<a>なので既定のリンク遷移を止める。
+// カードのクリック処理。カードは<a>なので既定のリンク遷移は止め、アプリ内の詳細シートを開く。
 grid.addEventListener('click',e=>{
-  // マーク帯の中（ボタンの隙間含む）をタップしたら、カードは開かない＝誤爆防止
-  const zone=e.target.closest('.marks'); if(!zone) return;
-  e.preventDefault(); e.stopPropagation();
-  const m=e.target.closest('.mark'); if(!m) return;   // 隙間タップは何もしない（遷移だけ止める）
-  const r=m.dataset.r, k=m.dataset.mark;
-  toggleMark(r,k);
-  const on=getMark(r,k);
-  m.classList.toggle('on',on); m.setAttribute('aria-pressed',String(on));
-  if(state.mfav||state.mwant||state.mmade) render();   // マイリスト表示中なら消える/現れる
+  // マーク帯（お気に入り/気になる/つくった）を最優先で処理。帯の隙間タップでも遷移は止める＝誤爆防止。
+  const zone=e.target.closest('.marks');
+  if(zone){
+    e.preventDefault(); e.stopPropagation();
+    const m=e.target.closest('.mark'); if(!m) return;
+    doToggleMark(m.dataset.r, m.dataset.mark);
+    return;
+  }
+  const cardEl=e.target.closest('.card'); if(!cardEl) return;
+  // Cmd/Ctrl+クリックや中クリックは既定動作（新規タブで公式ページ）に任せる
+  if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1) return;
+  const r=cardEl.dataset.r;
+  if(r){ e.preventDefault(); openDetail(r); }
+});
+
+/* ============ 詳細シート（アプリ内モーダル） ============ */
+const overlay = document.getElementById('overlay');
+const sheet   = document.getElementById('sheet');
+const sheetBody = document.getElementById('sheet-body');
+let lastFocus = null;
+
+function openDetail(r){
+  const x = byR.get(r); if(!x) return;
+  const dispNo = esc(String(menuNo(x)));
+  const pills = [];
+  if(x.cat) pills.push(`<span class="pill cat">${esc(x.cat)}</span>`);
+  if(x.min!=null) pills.push(`<span class="pill time">⏱ ${x.min}分</span>`);
+  (x.mains||[]).forEach(m=>pills.push(`<span class="pill main">${esc(m)}</span>`));
+  if(x.size && x.size!=="全") pills.push(`<span class="pill">${esc(x.size)}L</span>`);
+  if(x.lim) pills.push(`<span class="pill lim">${esc(x.lim)}限定</span>`);
+  if(x.yoyaku) pills.push(`<span class="pill yoyaku">予約OK</span>`);
+  if(x.cloud) pills.push(`<span class="pill cloud">クラウド</span>`);
+  const photo = x.r
+    ? `<img referrerpolicy="no-referrer" src="${PHOTO(x.r)}" alt="${esc(x.name)}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+       <div class="fallback"><strong>No.${dispNo}</strong></div>`
+    : `<div class="fallback" style="display:flex"><strong>No.${dispNo}</strong></div>`;
+  const marksHtml = ["fav","want","made"].map(k=>
+    `<span class="mark${getMark(x.r,k)?' on':''}" role="button" tabindex="0" data-mark="${k}" data-r="${x.r}" aria-pressed="${getMark(x.r,k)}">${MARK_GLYPH[k]} ${MARK_LABEL[k]}</span>`
+  ).join('');
+  const ago = madeAgoText(x.r);
+  const ingHtml = (x.ing&&x.ing.length)
+    ? `<div class="ding"><h3>材料</h3><ul>${x.ing.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>` : '';
+  const linkHtml = x.r ? `<a class="dlink" href="${LINK(x.r)}" target="_blank" rel="noopener">公式レシピを見る（COCORO KITCHEN）↗</a>` : '';
+  sheetBody.innerHTML = `
+    <div class="dphoto"><span class="num">No.${dispNo}</span>${photo}</div>
+    <div class="dbody">
+      <h2 class="dname" id="sheet-name">${esc(x.name)}</h2>
+      <div class="dmeta">${pills.join('')}</div>
+      <div class="dmarks">${marksHtml}</div>
+      <div class="dmade"${ago?'':' hidden'}>✓ ${esc(ago)}</div>
+      ${ingHtml}
+      ${linkHtml}
+    </div>`;
+  lastFocus = document.activeElement;
+  overlay.hidden = false; sheet.hidden = false;
+  document.body.style.overflow = 'hidden';
+  document.getElementById('sheet-close').focus();
+}
+function closeSheet(){
+  sheet.hidden = true; overlay.hidden = true;
+  document.body.style.overflow = '';
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+// シート内のマーク操作（カードと同じ挙動＋「つくった日」表示も更新）
+sheetBody.addEventListener('click',e=>{
+  const m=e.target.closest('.mark'); if(!m) return;
+  doToggleMark(m.dataset.r, m.dataset.mark);
+  if(m.dataset.mark==='made'){
+    const el=sheetBody.querySelector('.dmade');
+    const ago=madeAgoText(m.dataset.r);
+    if(el){ el.textContent = '✓ '+ago; el.hidden = !ago; }
+  }
+});
+sheetBody.addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ') && e.target.classList.contains('mark')){ e.preventDefault(); e.target.click(); }
+});
+document.getElementById('sheet-close').addEventListener('click', closeSheet);
+
+/* ============ 機種オンボーディング ============ */
+const ONBOARD_KEY = "hotcook_onboarded";
+const onboard = document.getElementById('onboard');
+function openOnboard(){
+  // 現在の機種を初期選択にする
+  const sel=document.getElementById('onb-model');
+  sel.value = state.model || "";
+  lastFocus = document.activeElement;
+  overlay.hidden = false; onboard.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function closeOnboard(){
+  onboard.hidden = true; overlay.hidden = true;
+  document.body.style.overflow = '';
+  try{ localStorage.setItem(ONBOARD_KEY,"1"); }catch(e){}
+  if(lastFocus && lastFocus.focus) lastFocus.focus();
+}
+function applyModel(v){
+  state.model = v;
+  const modelSel = document.getElementById('model');
+  if([...modelSel.options].some(o=>o.value===v)) modelSel.value=v;
+  try{ v ? localStorage.setItem(MODEL_KEY, v) : localStorage.removeItem(MODEL_KEY); }catch(e){}
+  render();
+}
+document.getElementById('onb-apply').addEventListener('click',()=>{
+  applyModel(document.getElementById('onb-model').value);
+  closeOnboard();
+});
+document.getElementById('onb-skip').addEventListener('click',()=>{ closeOnboard(); });
+document.getElementById('modelbadge').addEventListener('click', openOnboard);
+
+// オーバーレイのクリック／Escで、開いているモーダルを閉じる
+overlay.addEventListener('click',()=>{ if(!sheet.hidden) closeSheet(); if(!onboard.hidden) closeOnboard(); });
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  if(!sheet.hidden) closeSheet();
+  else if(!onboard.hidden) closeOnboard();
+});
+
+/* ============ マークの書き出し／読み込み（バックアップ） ============ */
+function exportMarks(){
+  const prog=document.getElementById('markprog');
+  if(!Object.keys(marks).length){ prog.textContent='書き出すマークがありません'; return; }
+  const payload = JSON.stringify({app:"hotcook-menu-browser", ver:1, exportedAt:new Date().toISOString(), marks});
+  const blob = new Blob([payload], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date(), pad=n=>String(n).padStart(2,'0');
+  a.href=url; a.download=`hotcook-marks-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  prog.textContent='書き出しました';
+}
+function importMarks(file){
+  const prog=document.getElementById('markprog');
+  const reader=new FileReader();
+  reader.onload=()=>{
+    let obj; try{ obj=JSON.parse(reader.result); }catch(e){ prog.textContent='読み込めませんでした（JSON形式ではありません）'; return; }
+    const incoming = (obj&&obj.marks&&typeof obj.marks==='object') ? obj.marks : (obj&&typeof obj==='object'?obj:null);
+    if(!incoming){ prog.textContent='マークデータが見つかりませんでした'; return; }
+    let n=0;
+    for(const r in incoming){
+      const src=incoming[r]; if(!src||typeof src!=='object') continue;
+      ["fav","want","made"].forEach(k=>{
+        if(!src[k]) return;
+        if(!marks[r]) marks[r]={};
+        if(k==='made'){
+          const cur=typeof marks[r].made==='number'?marks[r].made:0;
+          const inc=typeof src.made==='number'?src.made:1;
+          marks[r].made = Math.max(cur, inc) || 1;   // 新しい日付を優先。日付なし同士は 1。
+        } else { marks[r][k]=1; }
+        n++;
+      });
+    }
+    saveMarks();
+    // 画面上の全マークを同期して再描画
+    document.querySelectorAll('.mark').forEach(el=>{
+      const on=getMark(el.dataset.r, el.dataset.mark);
+      el.classList.toggle('on',on); el.setAttribute('aria-pressed',String(on));
+    });
+    render();
+    prog.textContent=`${n} 件のマークを読み込みました（既存の記録に統合）`;
+  };
+  reader.readAsText(file);
+}
+document.getElementById('export-marks').addEventListener('click', exportMarks);
+document.getElementById('import-marks').addEventListener('click',()=>document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change',function(){
+  if(this.files && this.files[0]) importMarks(this.files[0]);
+  this.value='';   // 同じファイルを続けて選べるように
 });
 
 // モバイル: 「絞り込み」で プルダウン/チップ を開閉
@@ -1357,6 +1692,15 @@ if(savedState){
 }
 
 render();
+
+// 初回アクセス（案内未表示）だけオンボーディングを出す。
+// 既に機種を選んでいる復帰ユーザーには出さず、案内済みフラグだけ立てる。
+try{
+  if(!localStorage.getItem(ONBOARD_KEY)){
+    if(state.model) localStorage.setItem(ONBOARD_KEY,"1");
+    else setTimeout(openOnboard, 250);
+  }
+}catch(e){}
 
 // 復元完了 → 以後は保存する。スクロール位置も戻す。
 if(savedState && savedState.y) setTimeout(()=>window.scrollTo(0, savedState.y), 60);
