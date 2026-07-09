@@ -4,7 +4,7 @@
    - Googleフォントも cache-first
    データ(recipes.json)は index.html に埋め込み済みなので、シェルのキャッシュで一緒に入る。
    バージョンを上げると古いシェルキャッシュは activate 時に破棄される。 */
-const VERSION = "v20260709083122";
+const VERSION = "v20260709114712";
 const SHELL = "hotcook-shell-" + VERSION;
 const FONTS = "hotcook-fonts";
 const PHOTOS = "hotcook-photos";
