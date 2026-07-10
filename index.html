@@ -189,10 +189,16 @@
     grid-column:1/-1;display:flex;align-items:center;gap:10px;
     margin:20px 0 4px;padding:8px 13px;
     background:var(--red-soft);border-left:4px solid var(--red);border-radius:0 8px 8px 0;
+    width:100%;border-top:0;border-right:0;border-bottom:0;
+    font:inherit;text-align:left;cursor:pointer;color:inherit;
   }
   .group:first-child{margin-top:2px}
   .group h2{font-size:16px;font-weight:700;margin:0;color:#b02a20}
   .group .gc{font-family:"Roboto Mono",monospace;font-size:12px;color:#b02a20;opacity:.8}
+  .group .ga{margin-left:auto;color:#b02a20;font-size:13px;transition:transform .15s ease}
+  .group[aria-expanded="false"] .ga{transform:rotate(-90deg)}
+  .group:hover{filter:brightness(.98)}
+  .group:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 
   .empty{text-align:center;color:var(--muted);padding:80px 20px;font-size:15px}
   footer{max-width:1180px;margin:0 auto;padding:0 20px 50px;color:var(--muted);font-size:12px;line-height:1.7}
@@ -1168,7 +1174,8 @@ let savedMotto = (()=>{ try{ return localStorage.getItem(MOTTO_KEY)==="1"; }catc
 if(savedModel===MOTTO_CODE){ savedModel=""; savedMotto=true; try{ localStorage.removeItem(MODEL_KEY); localStorage.setItem(MOTTO_KEY,"1"); }catch(e){} }
 
 const state = { q:"", sort:"no", size:"", cats:new Set(), main:"", model:savedModel, motto:savedMotto,
-  yoyaku:false, cloud:false, notcloud:false, group:true, view:"list", mfav:false, mwant:false, mmade:false };
+  yoyaku:false, cloud:false, notcloud:false, group:true, view:"list", mfav:false, mwant:false, mmade:false,
+  collapsedCats:new Set() };
 const grid = document.getElementById('grid');
 const empty = document.getElementById('empty');
 const countEl = document.getElementById('count');
@@ -1225,7 +1232,7 @@ function saveState(){
   try{ localStorage.setItem(STATE_KEY, JSON.stringify({
     q:state.q, sort:state.sort, size:state.size, cats:[...state.cats], main:state.main,
     yoyaku:state.yoyaku, cloud:state.cloud, notcloud:state.notcloud, group:state.group, view:state.view,
-    mfav:state.mfav, mwant:state.mwant, mmade:state.mmade,
+    mfav:state.mfav, mwant:state.mwant, mmade:state.mmade, collapsedCats:[...state.collapsedCats],
     y: window.scrollY
   })); }catch(e){}
 }
@@ -1324,9 +1331,14 @@ function card(x){
 }
 
 function groupHead(label,n){
-  const el=document.createElement('div');
+  const el=document.createElement('button');
+  const open=!state.collapsedCats.has(label);
+  el.type='button';
   el.className='group';
-  el.innerHTML=`<h2>${esc(label)}</h2><span class="gc">${n} 件</span>`;
+  el.dataset.cat=label;
+  el.setAttribute('aria-expanded',String(open));
+  el.setAttribute('aria-label',`${label} ${n}件を${open?'折りたたむ':'展開する'}`);
+  el.innerHTML=`<h2>${esc(label)}</h2><span class="gc">${n} 件</span><span class="ga" aria-hidden="true">▼</span>`;
   return el;
 }
 
@@ -1387,7 +1399,7 @@ function render(){
     CAT_ORDER.filter(c=>byCat.has(c)).forEach(c=>{
       const items=byCat.get(c);
       frag.appendChild(groupHead(c,items.length));
-      items.forEach(x=>frag.appendChild(card(x)));
+      if(!state.collapsedCats.has(c)) items.forEach(x=>frag.appendChild(card(x)));
     });
   } else {
     list.forEach(x=>frag.appendChild(card(x)));
@@ -1533,6 +1545,14 @@ toggle('mf-made','mmade');
 
 // カードのクリック処理。カードは<a>なので既定のリンク遷移は止め、アプリ内の詳細シートを開く。
 grid.addEventListener('click',e=>{
+  const group=e.target.closest('.group');
+  if(group){
+    const cat=group.dataset.cat;
+    if(state.collapsedCats.has(cat)) state.collapsedCats.delete(cat);
+    else state.collapsedCats.add(cat);
+    render();
+    return;
+  }
   // マーク帯（お気に入り/気になる/つくった）を最優先で処理。帯の隙間タップでも遷移は止める＝誤爆防止。
   const zone=e.target.closest('.marks');
   if(zone){
@@ -1804,6 +1824,7 @@ if(savedState){
   else if(typeof savedState.list==="boolean") state.view = savedState.list ? "list" : "grid";
   if(Array.isArray(savedState.cats)) state.cats = new Set(savedState.cats);
   else if(typeof savedState.cat==="string" && savedState.cat) state.cats = new Set([savedState.cat]);   // 旧形式との互換
+  if(Array.isArray(savedState.collapsedCats)) state.collapsedCats = new Set(savedState.collapsedCats);
   document.getElementById('q').value = state.q;
   ["sort","size","main"].forEach(id=>{
     const sel=document.getElementById(id);
