@@ -2,9 +2,10 @@
    - アプリシェル（HTML/アイコン/manifest）を precache → オフライン起動
    - SHARP写真は cache-first + LRU（端末キャッシュ・一度見たら圏外でも表示）
    - Googleフォントも cache-first
-   データ(recipes.json)は index.html に埋め込み済みなので、シェルのキャッシュで一緒に入る。
-   バージョンを上げると古いシェルキャッシュは activate 時に破棄される。 */
-const VERSION = "v20260711083732";
+   データ(recipes.json / nora.json)は起動時に fetch するので、シェルと一緒に precache する。
+   JS/CSS は Vite がハッシュ無しの固定名（assets/index.*）で出す。
+   バージョンを上げると古いシェルキャッシュは activate 時に破棄される（deploy.sh が毎回スタンプ）。 */
+const VERSION = "v20261020155701";
 const SHELL = "hotcook-shell-" + VERSION;
 const FONTS = "hotcook-fonts";
 const PHOTOS = "hotcook-photos";
@@ -13,7 +14,11 @@ const PHOTO_MAX = 800;                      // 端末に貯める写真の上限
 const SHELL_ASSETS = [
   "./",
   "./index.html",
+  "./assets/index.js",
+  "./assets/index.css",
   "./manifest.json",
+  "./data/recipes.json",     // 一覧データ（起動時に fetch）
+  "./data/nora.json",        // 野良レシピ
   "./data/details.json",     // 作り方・分量（遅延ロード・オフライン用に一緒に precache）
   "./icons/icon-192.png",
   "./icons/icon-512.png",

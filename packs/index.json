@@ -1,0 +1,32 @@
+{
+ "schema": 1,
+ "updatedAt": "2026-10-20",
+ "packs": [
+  {
+   "id": "hotcook-official",
+   "name": "ホットクック公式メニュー",
+   "version": "2026-10-20-97a5ff477750",
+   "url": "hotcook-official.zip",
+   "size": 174241,
+   "sha256": "6ab24de7f1259926597c8de657bf168ea35621bafa999aaaee5c7c08e8099cdb",
+   "counts": {
+    "recipes": 704,
+    "details": 698
+   },
+   "notice": "メニュー情報・写真は SHARP COCORO KITCHEN より。個人利用向けの非公式スナップショット。"
+  },
+  {
+   "id": "hotcook-nora",
+   "name": "野良（非公式）ホットクックレシピ",
+   "version": "2026-10-20-46a668223817",
+   "url": "hotcook-nora.zip",
+   "size": 773,
+   "sha256": "cacfab91976bfa19a74c5373c2a1407a3b5629f89faa01108aa34d452184d4b2",
+   "counts": {
+    "recipes": 1,
+    "details": 0
+   },
+   "notice": "出典リンクとメタ情報のみ（手順・分量・写真は含まない）。"
+  }
+ ]
+}
